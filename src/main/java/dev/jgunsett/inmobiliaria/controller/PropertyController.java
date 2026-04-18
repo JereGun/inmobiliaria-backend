@@ -5,7 +5,6 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -15,21 +14,18 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import dev.jgunsett.inmobiliaria.application.dto.customer.CustomerResponse;
 import dev.jgunsett.inmobiliaria.application.dto.property.PropertyCreateRequest;
+import dev.jgunsett.inmobiliaria.application.dto.property.PropertyImageResponse;
 import dev.jgunsett.inmobiliaria.application.dto.property.PropertyResponse;
 import dev.jgunsett.inmobiliaria.application.dto.property.PropertySearchResponse;
 import dev.jgunsett.inmobiliaria.application.dto.property.PropertyUpdateRequest;
+import dev.jgunsett.inmobiliaria.application.service.PropertyImageService;
 import dev.jgunsett.inmobiliaria.application.service.PropertyService;
 import dev.jgunsett.inmobiliaria.domain.enums.OperationType;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -38,6 +34,7 @@ import lombok.RequiredArgsConstructor;
 public class PropertyController {
 
 	private final PropertyService propertyService;
+	private final PropertyImageService propertyImageService;
 	
 	@GetMapping
 	public Page<PropertyResponse> getAll(
@@ -64,10 +61,19 @@ public class PropertyController {
 	@PutMapping("/{id}")
 	public PropertyResponse update(
 	        @PathVariable Long id,
-	        @ModelAttribute PropertyUpdateRequest request,
-	        @RequestParam(value = "images", required = false) List<MultipartFile> newImages) {
+	        @RequestBody PropertyUpdateRequest request) {
 
-	    return propertyService.update(id, request, newImages);
+	    return propertyService.update(id, request);
+	}
+
+	@PostMapping("/{id}/images")
+	@ResponseStatus(HttpStatus.CREATED)
+	public PropertyImageResponse uploadImage(
+	        @PathVariable Long id,
+	        @RequestParam MultipartFile file,
+	        @RequestParam(defaultValue = "false") boolean cover) {
+
+	    return propertyImageService.addImage(id, file, cover);
 	}
 	
 	@DeleteMapping("{id}")

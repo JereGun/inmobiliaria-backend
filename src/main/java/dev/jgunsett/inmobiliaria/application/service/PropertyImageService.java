@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import dev.jgunsett.inmobiliaria.application.dto.property.PropertyImageResponse;
 import dev.jgunsett.inmobiliaria.domain.entity.Property;
 import dev.jgunsett.inmobiliaria.domain.entity.PropertyImage;
 import dev.jgunsett.inmobiliaria.exception.BusinessException;
@@ -31,7 +32,7 @@ public class PropertyImageService {
     }
 
     @Transactional
-    public void addImage(Long propertyId, MultipartFile file, boolean cover) {
+    public PropertyImageResponse addImage(Long propertyId, MultipartFile file, boolean cover) {
 
         Property property = propertyRepository.findById(propertyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Property not found"));
@@ -49,20 +50,18 @@ public class PropertyImageService {
             throw new BusinessException("Error saving image file");
         }
 
-        if (cover) {
-            propertyImageRepository.findByPropertyIdAndCoverTrue(propertyId)
-                    .ifPresent(existing -> {
-                        existing.setCover(false);
-                        propertyImageRepository.save(existing);
-                    });
-        }
+        boolean shouldBeCover = cover || property.getImages().isEmpty();
 
         PropertyImage image = new PropertyImage();
         image.setUrl("/uploads/" + fileName);
-        image.setCover(cover);
+        image.setCover(shouldBeCover);
         image.setProperty(property);
 
-        propertyImageRepository.save(image);
+        if (shouldBeCover) {
+            clearCurrentCover(propertyId);
+        }
+
+        return toResponse(propertyImageRepository.save(image));
     }
 
     @Transactional(readOnly = true)
@@ -75,6 +74,58 @@ public class PropertyImageService {
         PropertyImage image = propertyImageRepository.findById(imageId)
                 .orElseThrow(() -> new ResourceNotFoundException("Image not found"));
 
+        Long propertyId = image.getProperty().getId();
+        boolean wasCover = image.isCover();
+
         propertyImageRepository.delete(image);
+        propertyImageRepository.flush();
+        deleteImageFile(image.getUrl());
+
+        if (wasCover) {
+            propertyImageRepository.findByPropertyId(propertyId).stream()
+                    .findFirst()
+                    .ifPresent(nextCover -> {
+                        nextCover.setCover(true);
+                        propertyImageRepository.save(nextCover);
+                    });
+        }
+    }
+
+    @Transactional
+    public PropertyImageResponse setCover(Long imageId) {
+        PropertyImage image = propertyImageRepository.findById(imageId)
+                .orElseThrow(() -> new ResourceNotFoundException("Image not found"));
+
+        Long propertyId = image.getProperty().getId();
+        clearCurrentCover(propertyId);
+        image.setCover(true);
+
+        return toResponse(propertyImageRepository.save(image));
+    }
+
+    private void clearCurrentCover(Long propertyId) {
+        propertyImageRepository.findByPropertyIdAndCoverTrue(propertyId)
+                .ifPresent(existing -> {
+                    existing.setCover(false);
+                    propertyImageRepository.save(existing);
+                });
+    }
+
+    private void deleteImageFile(String url) {
+        try {
+            String fileName = url.replace("/uploads/", "");
+            Path path = Paths.get("uploads/").resolve(fileName);
+            Files.deleteIfExists(path);
+        } catch (IOException e) {
+            throw new BusinessException("Error deleting image file");
+        }
+    }
+
+    private PropertyImageResponse toResponse(PropertyImage image) {
+        return PropertyImageResponse.builder()
+                .id(image.getId())
+                .url(image.getUrl())
+                .cover(image.isCover())
+                .build();
     }
 }

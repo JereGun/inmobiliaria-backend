@@ -100,7 +100,7 @@ public class PropertyService {
 	
 	// modificacion de propiedad
 	@Transactional
-	public PropertyResponse update(Long id, PropertyUpdateRequest dto, List<MultipartFile> newImages) {
+	public PropertyResponse update(Long id, PropertyUpdateRequest dto) {
 
 	    Property property = propertyRepository.findById(id)
 	            .orElseThrow(() -> new ResourceNotFoundException(
@@ -133,11 +133,6 @@ public class PropertyService {
 	            deleteImageFile(image.getUrl());      // borrar archivo físico
 	            property.getImages().remove(image);   // elimina de DB (orphanRemoval)
 	        }
-	    }
-
-	    // agregar nuevas imagenes
-	    if (newImages != null && !newImages.isEmpty()) {
-	        saveImages(property, newImages, null); // nuevas no son cover automáticamente
 	    }
 
 	    // reasignar cover (si viene)

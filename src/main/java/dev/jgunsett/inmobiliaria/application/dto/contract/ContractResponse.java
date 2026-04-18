@@ -28,7 +28,7 @@ public class ContractResponse {
 	private String tenantFullName;
 	
 	private LocalDate startDate;
-	private LocalDate endDatel;
+	private LocalDate endDate;
 	
 	private BigDecimal baseRentalAmount;
 	private LocalDate firstAdjustmentDate;

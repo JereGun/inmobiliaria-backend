@@ -18,7 +18,7 @@ public class ContractMapper {
 				.tenantId(c.getTenant().getId())
 				.tenantFullName(c.getTenant().getFullName())
 				.startDate(c.getStartDate())
-				.endDatel(c.getEndDate())
+				.endDate(c.getEndDate())
 				.baseRentalAmount(c.getBaseRentalAmount())
 				.firstAdjustmentDate(c.getFirstAdjustmentDate())
 				.currency(c.getCurrency())
