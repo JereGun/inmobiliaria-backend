@@ -10,6 +10,7 @@ import dev.jgunsett.inmobiliaria.application.dto.invoice.InvoiceCreateRequest;
 import dev.jgunsett.inmobiliaria.application.dto.invoice.InvoiceResponse;
 import dev.jgunsett.inmobiliaria.application.dto.invoice.InvoiceUpdateRequest;
 import dev.jgunsett.inmobiliaria.application.service.InvoiceService;
+import dev.jgunsett.inmobiliaria.domain.enums.InvoiceStatus;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
@@ -62,6 +63,17 @@ public class InvoiceController {
             @RequestParam(defaultValue = "10") int size) {
 
         Page<InvoiceResponse> response = invoiceService.getAll(page, size);
+
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/status")
+    public ResponseEntity<Page<InvoiceResponse>> getByStatus(
+            @RequestParam InvoiceStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        Page<InvoiceResponse> response = invoiceService.getByStatus(status, page, size);
 
         return ResponseEntity.ok(response);
     }

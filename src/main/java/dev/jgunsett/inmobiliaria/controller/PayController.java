@@ -1,6 +1,7 @@
 package dev.jgunsett.inmobiliaria.controller;
 import java.util.List;
 
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,6 +22,19 @@ public class PayController {
     @ResponseStatus(HttpStatus.CREATED)
     public PayResponse create(@Valid @RequestBody PayCreateRequest request) {
         return payService.create(request);
+    }
+
+    @GetMapping
+    public Page<PayResponse> findAll(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        return payService.findAll(page, size);
+    }
+
+    @GetMapping("/{id}")
+    public PayResponse findById(@PathVariable Long id) {
+        return payService.findById(id);
     }
 
     @GetMapping("/invoice/{invoiceId}")

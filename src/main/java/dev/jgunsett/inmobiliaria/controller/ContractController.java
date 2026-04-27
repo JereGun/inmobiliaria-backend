@@ -1,11 +1,17 @@
 package dev.jgunsett.inmobiliaria.controller;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import dev.jgunsett.inmobiliaria.application.dto.contract.ContractCreateRequest;
+import dev.jgunsett.inmobiliaria.application.dto.contract.ContractAdjustmentCreateRequest;
+import dev.jgunsett.inmobiliaria.application.dto.contract.ContractAdjustmentResponse;
 import dev.jgunsett.inmobiliaria.application.dto.contract.ContractResponse;
 import dev.jgunsett.inmobiliaria.application.dto.contract.ContractUpdateRequest;
 import dev.jgunsett.inmobiliaria.application.service.ContractService;
@@ -82,6 +88,30 @@ public class ContractController {
 	@PostMapping("/{id}/terminate")
 	public ResponseEntity<ContractResponse> terminate(@PathVariable Long id) {
 	    return ResponseEntity.ok(contractService.terminate(id));
+	}
+
+	@GetMapping("/{id}/adjustments")
+	public ResponseEntity<List<ContractAdjustmentResponse>> getAdjustments(@PathVariable Long id) {
+	    return ResponseEntity.ok(contractService.getAdjustments(id));
+	}
+
+	@PostMapping("/{id}/adjustments")
+	@ResponseStatus(HttpStatus.CREATED)
+	public ContractAdjustmentResponse addAdjustment(
+	        @PathVariable Long id,
+	        @Valid @RequestBody ContractAdjustmentCreateRequest request) {
+
+	    return contractService.addAdjustment(id, request);
+	}
+
+	@GetMapping("/{id}/rental-amount")
+	public ResponseEntity<BigDecimal> calculateRentalAmount(
+	        @PathVariable Long id,
+	        @RequestParam(required = false) LocalDate date) {
+
+	    LocalDate calculationDate = date != null ? date : LocalDate.now();
+
+	    return ResponseEntity.ok(contractService.calculateRentalAmount(id, calculationDate));
 	}
 	
 }

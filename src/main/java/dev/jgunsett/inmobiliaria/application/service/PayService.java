@@ -2,6 +2,9 @@ package dev.jgunsett.inmobiliaria.application.service;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +39,22 @@ public class PayService {
                 .build();
 
         return PayMapper.toResponse(payRepository.save(pay));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PayResponse> findAll(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+
+        return payRepository.findAll(pageable)
+                .map(PayMapper::toResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public PayResponse findById(Long id) {
+        Pay pay = payRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Payment not found"));
+
+        return PayMapper.toResponse(pay);
     }
 
     @Transactional(readOnly = true)

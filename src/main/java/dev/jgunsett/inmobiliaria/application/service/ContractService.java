@@ -443,7 +443,9 @@ public class ContractService {
             return false;
         }
 
-        int frequencyMonths = contract.getAdjustmentFrequency().getMonths();
+        int frequencyMonths = contract.getAdjustmentFrequency() != null
+                ? contract.getAdjustmentFrequency().getMonths()
+                : 1;
 
         long monthsBetween = java.time.temporal.ChronoUnit.MONTHS.between(
                 contract.getFirstAdjustmentDate(),

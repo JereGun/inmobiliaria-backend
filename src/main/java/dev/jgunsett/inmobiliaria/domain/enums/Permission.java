@@ -1,0 +1,16 @@
+package dev.jgunsett.inmobiliaria.domain.enums;
+
+public enum Permission {
+	CUSTOMER_READ,
+	CUSTOMER_WRITE,
+	PROPERTY_READ,
+	PROPERTY_WRITE,
+	CONTRACT_READ,
+	CONTRACT_WRITE,
+	INVOICE_READ,
+	INVOICE_WRITE,
+	PAY_READ,
+	PAY_WRITE,
+	USER_READ,
+	USER_WRITE
+}

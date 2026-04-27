@@ -191,6 +191,15 @@ public class InvoiceService {
                 .map(invoiceMapper::toResponse);
     }
 
+    @Transactional(readOnly = true)
+    public Page<InvoiceResponse> getByStatus(InvoiceStatus status, int page, int size) {
+
+        Pageable pageable = PageRequest.of(page, size);
+
+        return invoiceRepository.findByStatus(status, pageable)
+                .map(invoiceMapper::toResponse);
+    }
+
     // Generación de código (simple)
     private String generateInvoiceCode() {
         return "INV-" + LocalDateTime.now().toString();
