@@ -21,6 +21,10 @@ public class Company {
 	
 	@NotBlank
 	private String name;
+
+	private String taxId;
+
+	private String fiscalCondition;
 	
 	//Direccion
 	private String street;

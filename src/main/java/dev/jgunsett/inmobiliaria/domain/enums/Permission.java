@@ -12,5 +12,7 @@ public enum Permission {
 	PAY_READ,
 	PAY_WRITE,
 	USER_READ,
-	USER_WRITE
+	USER_WRITE,
+	CONFIG_READ,
+	CONFIG_WRITE
 }
