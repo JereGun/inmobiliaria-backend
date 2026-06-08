@@ -3,6 +3,7 @@ package dev.jgunsett.inmobiliaria.application.dto.contract;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+import dev.jgunsett.inmobiliaria.domain.enums.AdjustmentFrequency;
 import dev.jgunsett.inmobiliaria.domain.enums.BillingFrequency;
 import dev.jgunsett.inmobiliaria.domain.enums.ContractType;
 import dev.jgunsett.inmobiliaria.domain.enums.Currency;
@@ -32,6 +33,9 @@ public class ContractCreateRequest {
 	
 	@NotNull
 	private LocalDate firstAdjustmentDate;
+
+	@NotNull
+	private AdjustmentFrequency adjustmentFrequency;
 	
 	@NotNull
 	private Currency currency;

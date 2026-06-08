@@ -13,6 +13,7 @@ import dev.jgunsett.inmobiliaria.application.dto.contract.ContractResponse;
 import dev.jgunsett.inmobiliaria.application.dto.customer.CustomerCreateRequest;
 import dev.jgunsett.inmobiliaria.application.dto.customer.CustomerResponse;
 import dev.jgunsett.inmobiliaria.application.dto.customer.CustomerUpdateRequest;
+import dev.jgunsett.inmobiliaria.application.dto.invoice.InvoiceResponse;
 import dev.jgunsett.inmobiliaria.application.dto.property.PropertyResponse;
 import dev.jgunsett.inmobiliaria.application.service.CustomerService;
 import jakarta.validation.Valid;
@@ -88,6 +89,14 @@ public class CustomerController {
     @GetMapping("/{id}/properties")
     public ResponseEntity<List<PropertyResponse>> getProperties(@PathVariable Long id) {
         return ResponseEntity.ok(customerService.getCustomerProperties(id));
+    }
+
+    @GetMapping("/{id}/invoices")
+    public ResponseEntity<Page<InvoiceResponse>> getInvoices(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(customerService.getCustomerInvoices(id, page, size));
     }
 
     @GetMapping("/owners")

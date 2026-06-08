@@ -2,31 +2,41 @@ package dev.jgunsett.inmobiliaria.application.service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.jgunsett.inmobiliaria.application.dto.contract.ContractAdjustmentCreateRequest;
 import dev.jgunsett.inmobiliaria.application.dto.contract.ContractAdjustmentResponse;
 import dev.jgunsett.inmobiliaria.application.dto.contract.ContractCreateRequest;
+import dev.jgunsett.inmobiliaria.application.dto.contract.ContractEventResponse;
 import dev.jgunsett.inmobiliaria.application.dto.contract.ContractResponse;
 import dev.jgunsett.inmobiliaria.application.dto.contract.ContractUpdateRequest;
 import dev.jgunsett.inmobiliaria.application.mapper.ContractAdjustmentMapper;
 import dev.jgunsett.inmobiliaria.application.mapper.ContractMapper;
 import dev.jgunsett.inmobiliaria.domain.entity.Contract;
 import dev.jgunsett.inmobiliaria.domain.entity.ContractAdjustment;
+import dev.jgunsett.inmobiliaria.domain.entity.ContractEvent;
 import dev.jgunsett.inmobiliaria.domain.entity.Customer;
+import dev.jgunsett.inmobiliaria.domain.entity.Notification;
 import dev.jgunsett.inmobiliaria.domain.entity.Property;
+import dev.jgunsett.inmobiliaria.domain.enums.ContractEventType;
 import dev.jgunsett.inmobiliaria.domain.enums.ContractStatus;
+import dev.jgunsett.inmobiliaria.domain.enums.NotificationType;
+import dev.jgunsett.inmobiliaria.domain.enums.PropertyStatus;
 import dev.jgunsett.inmobiliaria.exception.BusinessException;
 import dev.jgunsett.inmobiliaria.exception.ResourceNotFoundException;
 import dev.jgunsett.inmobiliaria.repository.ContractAdjustmentRepository;
+import dev.jgunsett.inmobiliaria.repository.ContractEventRepository;
 import dev.jgunsett.inmobiliaria.repository.ContractRepository;
 import dev.jgunsett.inmobiliaria.repository.CustomerRepository;
+import dev.jgunsett.inmobiliaria.repository.NotificationRepository;
 import dev.jgunsett.inmobiliaria.repository.PropertyRepository;
 import lombok.RequiredArgsConstructor;
 
@@ -54,6 +64,8 @@ public class ContractService {
 	private final PropertyRepository propertyRepository;
 	private final CustomerRepository customerRepository;
 	private final ContractAdjustmentRepository contractAdjustmentRepository;
+	private final NotificationRepository notificationRepository;
+	private final ContractEventRepository contractEventRepository;
 	
 	
 	// Creacion de contrato
@@ -76,29 +88,40 @@ public class ContractService {
 	public ContractResponse create(ContractCreateRequest req) {
 		
 		Property property = propertyRepository.findById(req.getPropertyId())
-				.orElseThrow(() -> new ResourceNotFoundException("La propiedad no funciona"));
-		
+				.orElseThrow(() -> new ResourceNotFoundException("Propiedad no encontrada"));
+
 		Customer owner = property.getOwner();
-		
+
 		Customer tenant = customerRepository.findById(req.getTenantId())
-				.orElseThrow(() -> new ResourceNotFoundException("El inquilino no funciona"));
-		
-		if (contractRepository.existsByPropertyIdAndStatus(req.getPropertyId(), ContractStatus.ACTIVE)) {
-			throw new RuntimeException("La propiedad con ID " + req.getPropertyId() + " ya posee un contrato activo");
+				.orElseThrow(() -> new ResourceNotFoundException("Inquilino no encontrado"));
+
+		if (property.getStatus() != PropertyStatus.AVAILABLE) {
+			throw new BusinessException(
+				"La propiedad no está disponible para ser contratada (estado actual: "
+				+ property.getStatus().getDescription() + ")"
+			);
 		}
-		
-		if (req.getEndDate().isBefore(req.getStartDate())) {
-		    throw new IllegalStateException("La fecha de fin no puede ser anterior a la de inicio");
+
+		if (contractRepository.existsByPropertyIdAndStatus(req.getPropertyId(), ContractStatus.ACTIVE)) {
+			throw new BusinessException("La propiedad ya tiene un contrato activo");
+		}
+
+		if (!req.getEndDate().isAfter(req.getStartDate())) {
+			throw new BusinessException("La fecha de fin debe ser posterior a la fecha de inicio");
 		}
 
 		if (owner.getId().equals(tenant.getId())) {
-		    throw new IllegalStateException("El dueño no puede ser el inquilino");
+			throw new BusinessException("El propietario y el inquilino no pueden ser la misma persona");
 		}
-		
+
+		if (req.getBaseRentalAmount() == null || req.getBaseRentalAmount().compareTo(BigDecimal.ZERO) <= 0) {
+			throw new BusinessException("El monto base de alquiler debe ser mayor a cero");
+		}
+
 		if (req.getFirstAdjustmentDate().isBefore(req.getStartDate())) {
-		    throw new BusinessException(
-		        "La fecha del primer ajuste no puede ser anterior al inicio del contrato"
-		    );
+			throw new BusinessException(
+				"La fecha del primer ajuste no puede ser anterior al inicio del contrato"
+			);
 		}
 
 		Contract contract = Contract.builder()
@@ -109,15 +132,19 @@ public class ContractService {
 				.endDate(req.getEndDate())
 				.baseRentalAmount(req.getBaseRentalAmount())
 				.firstAdjustmentDate(req.getFirstAdjustmentDate())
+				.adjustmentFrequency(req.getAdjustmentFrequency())
 				.currency(req.getCurrency())
 				.billingFrequency(req.getBillingFrequency())
 				.contractType(req.getContractType())
 				.lateFeePercentage(req.getLateFeePercentage())
 				.build();
 		
-		return ContractMapper.toResponse(contractRepository.save(contract));
+		Contract saved = contractRepository.save(contract);
+		recordEvent(saved, ContractEventType.CONTRACT_CREATED,
+				"Contrato creado para la propiedad \"" + property.getName() + "\"");
+		return ContractMapper.toResponse(saved);
 	}
-	
+
 	// Modificacion de contrato
 	/**
 	 * Modifica un contrato existente.
@@ -136,43 +163,37 @@ public class ContractService {
 		Contract contract = contractRepository.findById(contractId)
 				.orElseThrow(() -> new ResourceNotFoundException("El contrato no existe o no esta en funcionamiento"));
 		
-		// No se puede modificar un contrato ya cerrado
 		if (contract.getStatus() == ContractStatus.FINISHED ||
-				contract.getStatus() == ContractStatus.SUSPENDED ||
 				contract.getStatus() == ContractStatus.TERMINATED) {
-			throw new ResourceNotFoundException("No se puede modificar un contrato finalizado o cancelado");
+			throw new BusinessException("No se puede modificar un contrato finalizado o rescindido");
 		}
-		
-		// Solo se actualiza lo que venga informado
+
 		if (req.getEndDate() != null) {
-			if (req.getEndDate().isBefore(contract.getStartDate())) {
-				throw new ResourceNotFoundException("La fecha de fin no puede ser anterior a la fecha de inicio");
+			if (!req.getEndDate().isAfter(contract.getStartDate())) {
+				throw new BusinessException("La fecha de fin debe ser posterior a la fecha de inicio");
 			}
-			
 			contract.setEndDate(req.getEndDate());
 		}
-		
-	    if (req.getBaseRentalAmount() != null) {
 
-	        if (req.getBaseRentalAmount().compareTo(BigDecimal.ZERO) <= 0) {
-	            throw new ResourceNotFoundException("El importe del alquiler debe ser mayor a cero");
-	        }
+		if (req.getBaseRentalAmount() != null) {
+			if (req.getBaseRentalAmount().compareTo(BigDecimal.ZERO) <= 0) {
+				throw new BusinessException("El monto de alquiler debe ser mayor a cero");
+			}
+			contract.setBaseRentalAmount(req.getBaseRentalAmount());
+		}
 
-	        contract.setBaseRentalAmount(req.getBaseRentalAmount());
-	    }
-
-	    if (req.getLateFeePercentage() != null) {
-
-	        if (req.getLateFeePercentage().compareTo(BigDecimal.ZERO) < 0) {
-	            throw new ResourceNotFoundException("El cargo por pago atrasado no puede ser negativo");
-	        }
-
-	        contract.setLateFeePercentage(req.getLateFeePercentage());
-	    }
+		if (req.getLateFeePercentage() != null) {
+			if (req.getLateFeePercentage().compareTo(BigDecimal.ZERO) < 0) {
+				throw new BusinessException("El cargo por mora no puede ser negativo");
+			}
+			contract.setLateFeePercentage(req.getLateFeePercentage());
+		}
 	    
-	    return ContractMapper.toResponse(contractRepository.save(contract));
+		Contract saved = contractRepository.save(contract);
+		recordEvent(saved, ContractEventType.CONTRACT_UPDATED, "Datos del contrato actualizados");
+	    return ContractMapper.toResponse(saved);
 	}
-	
+
 	// Listar todos los contratos
 	@Transactional(readOnly = true)
 	public Page<ContractResponse> findAll(int page, int size) {
@@ -203,7 +224,17 @@ public class ContractService {
 
 	    return contractsPage.map(ContractMapper::toResponse);
 	}
-	
+
+	@Transactional(readOnly = true)
+	public Page<ContractResponse> findExpiring(int days, int page, int size) {
+		LocalDate today = LocalDate.now();
+		LocalDate limit = today.plusDays(days);
+		Pageable pageable = PageRequest.of(page, size);
+		return contractRepository
+				.findByStatusAndEndDateBetween(ContractStatus.ACTIVE, today, limit, pageable)
+				.map(ContractMapper::toResponse);
+	}
+
 	// Eliminar contrato
 	/**
 	 * Elimina un contrato.
@@ -218,9 +249,9 @@ public class ContractService {
 	    Contract contract = contractRepository.findById(contractId)
 	            .orElseThrow(() -> new ResourceNotFoundException("Contrato no encontrado"));
 
-	    if (contract.getStatus() == ContractStatus.ACTIVE) {
-	        throw new IllegalStateException("No se puede eliminar un contrato activo");
-	    }
+		if (contract.getStatus() == ContractStatus.ACTIVE) {
+			throw new BusinessException("No se puede eliminar un contrato activo");
+		}
 
 	    contractRepository.delete(contract);
 	}
@@ -237,10 +268,10 @@ public class ContractService {
 		}
 		
 		contract.setStatus(ContractStatus.ACTIVE);
-		
+		recordEvent(contract, ContractEventType.CONTRACT_ACTIVATED, "Estado cambiado de DRAFT a ACTIVE");
 		return ContractMapper.toResponse(contract);
 	}
-	
+
 	// Suspender Contrato
 	@Transactional
 	public ContractResponse suspend(Long contractId) {
@@ -253,7 +284,7 @@ public class ContractService {
 	    }
 
 	    contract.setStatus(ContractStatus.SUSPENDED);
-
+	    recordEvent(contract, ContractEventType.CONTRACT_SUSPENDED, "Estado cambiado de ACTIVE a SUSPENDED");
 	    return ContractMapper.toResponse(contract);
 	}
 
@@ -269,10 +300,10 @@ public class ContractService {
 	    }
 
 	    contract.setStatus(ContractStatus.ACTIVE);
-
+	    recordEvent(contract, ContractEventType.CONTRACT_RESUMED, "Estado cambiado de SUSPENDED a ACTIVE");
 	    return ContractMapper.toResponse(contract);
 	}
-	
+
 	//Finalizar Contrato
 	@Transactional
 	public ContractResponse finish(Long contractId) {
@@ -285,10 +316,10 @@ public class ContractService {
 	    }
 
 	    contract.setStatus(ContractStatus.FINISHED);
-
+	    recordEvent(contract, ContractEventType.CONTRACT_FINISHED, "Estado cambiado a FINISHED");
 	    return ContractMapper.toResponse(contract);
 	}
-	
+
 	// Rescindir Contrato
 	@Transactional
 	public ContractResponse terminate(Long contractId) {
@@ -305,10 +336,10 @@ public class ContractService {
 	    }
 
 	    contract.setStatus(ContractStatus.TERMINATED);
-
+	    recordEvent(contract, ContractEventType.CONTRACT_TERMINATED, "Contrato rescindido");
 	    return ContractMapper.toResponse(contract);
 	}
-	
+
 	// AJUSTES DE CONTRATO:
 	// Agregar ajuste a un contrato
 	/**
@@ -356,7 +387,9 @@ public class ContractService {
 	            .build();
 
 	    contractAdjustmentRepository.save(adjustment);
-
+	    resolveRentalAdjustmentNotifications(contractId, req.getEffectiveDate());
+	    recordEvent(contract, ContractEventType.ADJUSTMENT_ADDED,
+	            "Ajuste agregado: " + req.getAdjustmentType() + " " + req.getValue() + " efectivo " + req.getEffectiveDate());
 	    return ContractAdjustmentMapper.toResponse(adjustment);
 	}
 
@@ -453,5 +486,53 @@ public class ContractService {
         );
 
         return monthsBetween % frequencyMonths == 0;
+    }
+
+    @Transactional(readOnly = true)
+    public List<ContractEventResponse> getEvents(Long contractId) {
+        if (!contractRepository.existsById(contractId)) {
+            throw new ResourceNotFoundException("Contrato no encontrado");
+        }
+        return contractEventRepository.findByContractIdOrderByOccurredAtDesc(contractId)
+                .stream()
+                .map(e -> ContractEventResponse.builder()
+                        .id(e.getId())
+                        .eventType(e.getEventType().name())
+                        .details(e.getDetails())
+                        .performedBy(e.getPerformedBy())
+                        .occurredAt(e.getOccurredAt())
+                        .build())
+                .toList();
+    }
+
+    private void recordEvent(Contract contract, ContractEventType type, String details) {
+        String user = "system";
+        try {
+            var auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.getName() != null) {
+                user = auth.getName();
+            }
+        } catch (Exception ignored) {}
+
+        contractEventRepository.save(ContractEvent.builder()
+                .contract(contract)
+                .eventType(type)
+                .details(details)
+                .performedBy(user)
+                .build());
+    }
+
+    private void resolveRentalAdjustmentNotifications(Long contractId, LocalDate effectiveDate) {
+        List<Notification> notifications =
+                notificationRepository.findByContractIdAndTypeAndDueDateAndReadFalse(
+                        contractId,
+                        NotificationType.RENTAL_AMOUNT_UPDATE,
+                        effectiveDate
+                );
+
+        notifications.forEach(notification -> {
+            notification.setRead(true);
+            notification.setReadAt(LocalDateTime.now());
+        });
     }
 }

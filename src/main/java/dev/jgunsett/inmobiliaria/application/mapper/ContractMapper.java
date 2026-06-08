@@ -21,6 +21,7 @@ public class ContractMapper {
 				.endDate(c.getEndDate())
 				.baseRentalAmount(c.getBaseRentalAmount())
 				.firstAdjustmentDate(c.getFirstAdjustmentDate())
+				.adjustmentFrequency(c.getAdjustmentFrequency())
 				.currency(c.getCurrency())
 				.billingFrequency(c.getBillingFrequency())
 				.status(c.getStatus())

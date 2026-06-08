@@ -1,7 +1,9 @@
 package dev.jgunsett.inmobiliaria.controller;
+import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.data.domain.Page;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,9 +29,13 @@ public class PayController {
     @GetMapping
     public Page<PayResponse> findAll(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
 
-        return payService.findAll(page, size);
+        return (from != null && to != null)
+                ? payService.findAllByDateRange(from, to, page, size)
+                : payService.findAll(page, size);
     }
 
     @GetMapping("/{id}")

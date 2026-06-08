@@ -1,6 +1,7 @@
 package dev.jgunsett.inmobiliaria.application.service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -16,12 +17,15 @@ import dev.jgunsett.inmobiliaria.domain.entity.Contract;
 import dev.jgunsett.inmobiliaria.domain.entity.Customer;
 import dev.jgunsett.inmobiliaria.domain.entity.Invoice;
 import dev.jgunsett.inmobiliaria.domain.entity.InvoiceLine;
+import dev.jgunsett.inmobiliaria.domain.entity.Notification;
 import dev.jgunsett.inmobiliaria.domain.enums.InvoiceStatus;
+import dev.jgunsett.inmobiliaria.domain.enums.NotificationType;
 import dev.jgunsett.inmobiliaria.exception.BusinessException;
 import dev.jgunsett.inmobiliaria.exception.ResourceNotFoundException;
 import dev.jgunsett.inmobiliaria.repository.ContractRepository;
 import dev.jgunsett.inmobiliaria.repository.CustomerRepository;
 import dev.jgunsett.inmobiliaria.repository.InvoiceRepository;
+import dev.jgunsett.inmobiliaria.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -51,6 +55,7 @@ public class InvoiceService {
     private final CustomerRepository customerRepository;
     private final ContractRepository contractRepository;
     private final InvoiceMapper invoiceMapper;
+    private final NotificationRepository notificationRepository;
 
     // Crear Invoice
     /**
@@ -200,6 +205,20 @@ public class InvoiceService {
                 .map(invoiceMapper::toResponse);
     }
 
+    @Transactional(readOnly = true)
+    public Page<InvoiceResponse> getAllByDateRange(LocalDateTime from, LocalDateTime to, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return invoiceRepository.findByDateBetween(from, to, pageable)
+                .map(invoiceMapper::toResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<InvoiceResponse> getByStatusAndDateRange(InvoiceStatus status, LocalDateTime from, LocalDateTime to, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return invoiceRepository.findByStatusAndDateBetween(status, from, to, pageable)
+                .map(invoiceMapper::toResponse);
+    }
+
     // Generación de código (simple)
     private String generateInvoiceCode() {
         return "INV-" + LocalDateTime.now().toString();
@@ -266,6 +285,7 @@ public class InvoiceService {
     	}
     	
     	invoice.setStatus(InvoiceStatus.PAID);
+    	resolveOverdueRentNotifications(invoice);
     	
     	return invoiceMapper.toResponse(invoice);
     }
@@ -302,5 +322,18 @@ public class InvoiceService {
         invoice.setStatus(InvoiceStatus.CANCELED);
 
         return invoiceMapper.toResponse(invoice);
+    }
+
+    private void resolveOverdueRentNotifications(Invoice invoice) {
+        List<Notification> notifications =
+                notificationRepository.findByInvoiceIdAndTypeAndReadFalse(
+                        invoice.getId(),
+                        NotificationType.RENT_OVERDUE
+                );
+
+        notifications.forEach(notification -> {
+            notification.setRead(true);
+            notification.setReadAt(LocalDateTime.now());
+        });
     }
 }

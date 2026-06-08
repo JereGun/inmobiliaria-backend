@@ -1,5 +1,6 @@
 package dev.jgunsett.inmobiliaria.application.service;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.data.domain.Page;
@@ -46,6 +47,14 @@ public class PayService {
         Pageable pageable = PageRequest.of(page, size);
 
         return payRepository.findAll(pageable)
+                .map(PayMapper::toResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PayResponse> findAllByDateRange(LocalDate from, LocalDate to, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+
+        return payRepository.findByDateBetween(from, to, pageable)
                 .map(PayMapper::toResponse);
     }
 

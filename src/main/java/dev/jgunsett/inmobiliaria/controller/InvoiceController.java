@@ -1,6 +1,10 @@
 package dev.jgunsett.inmobiliaria.controller;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
 import org.springframework.data.domain.Page;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -56,13 +60,17 @@ public class InvoiceController {
         return ResponseEntity.ok(response);
     }
 
-    // Listar Invoices (paginado)
+    // Listar Invoices (paginado), con filtro de fecha opcional
     @GetMapping
     public ResponseEntity<Page<InvoiceResponse>> getAll(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
 
-        Page<InvoiceResponse> response = invoiceService.getAll(page, size);
+        Page<InvoiceResponse> response = (from != null && to != null)
+                ? invoiceService.getAllByDateRange(from.atStartOfDay(), to.atTime(23, 59, 59), page, size)
+                : invoiceService.getAll(page, size);
 
         return ResponseEntity.ok(response);
     }
@@ -71,9 +79,13 @@ public class InvoiceController {
     public ResponseEntity<Page<InvoiceResponse>> getByStatus(
             @RequestParam InvoiceStatus status,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
 
-        Page<InvoiceResponse> response = invoiceService.getByStatus(status, page, size);
+        Page<InvoiceResponse> response = (from != null && to != null)
+                ? invoiceService.getByStatusAndDateRange(status, from.atStartOfDay(), to.atTime(23, 59, 59), page, size)
+                : invoiceService.getByStatus(status, page, size);
 
         return ResponseEntity.ok(response);
     }

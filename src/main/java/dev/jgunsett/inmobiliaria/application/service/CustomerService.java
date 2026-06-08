@@ -13,14 +13,17 @@ import dev.jgunsett.inmobiliaria.application.dto.contract.ContractResponse;
 import dev.jgunsett.inmobiliaria.application.dto.customer.CustomerCreateRequest;
 import dev.jgunsett.inmobiliaria.application.dto.customer.CustomerResponse;
 import dev.jgunsett.inmobiliaria.application.dto.customer.CustomerUpdateRequest;
+import dev.jgunsett.inmobiliaria.application.dto.invoice.InvoiceResponse;
 import dev.jgunsett.inmobiliaria.application.dto.property.PropertyResponse;
 import dev.jgunsett.inmobiliaria.application.mapper.ContractMapper;
 import dev.jgunsett.inmobiliaria.application.mapper.CustomerMapper;
+import dev.jgunsett.inmobiliaria.application.mapper.InvoiceMapper;
 import dev.jgunsett.inmobiliaria.application.mapper.PropertyMapper;
 import dev.jgunsett.inmobiliaria.domain.entity.Contract;
 import dev.jgunsett.inmobiliaria.domain.entity.Customer;
 import dev.jgunsett.inmobiliaria.repository.ContractRepository;
 import dev.jgunsett.inmobiliaria.repository.CustomerRepository;
+import dev.jgunsett.inmobiliaria.repository.InvoiceRepository;
 import dev.jgunsett.inmobiliaria.repository.PropertyRepository;
 import dev.jgunsett.inmobiliaria.exception.ResourceNotFoundException;
 import dev.jgunsett.inmobiliaria.exception.BusinessException;
@@ -56,6 +59,8 @@ public class CustomerService {
     private final CustomerMapper customerMapper;
     private final ContractRepository contractRepository;
     private final PropertyRepository propertyRepository;
+    private final InvoiceRepository invoiceRepository;
+    private final InvoiceMapper invoiceMapper;
 
     /**
      * Crea un nuevo cliente.
@@ -218,6 +223,15 @@ public class CustomerService {
                 .toList();
     }
     
+    @Transactional(readOnly = true)
+    public Page<InvoiceResponse> getCustomerInvoices(Long customerId, int page, int size) {
+        Customer customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Customer not found"));
+        Pageable pageable = PageRequest.of(page, size);
+        return invoiceRepository.findByCustomer(customer, pageable)
+                .map(invoiceMapper::toResponse);
+    }
+
     public Page<CustomerResponse> findOwners(Pageable pageable) {
         return customerRepository
                 .findOwners(pageable)

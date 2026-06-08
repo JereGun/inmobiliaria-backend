@@ -1,8 +1,14 @@
 package dev.jgunsett.inmobiliaria.repository;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import dev.jgunsett.inmobiliaria.domain.entity.Invoice;
 import dev.jgunsett.inmobiliaria.domain.entity.Customer;
@@ -26,4 +32,21 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     // Buscar factura por código
     boolean existsByCode(String code);
+
+    List<Invoice> findByTypeAndStatusAndDateBefore(
+            InvoiceType type,
+            InvoiceStatus status,
+            LocalDateTime date
+    );
+
+    boolean existsByContractIdAndBillingPeriod(Long contractId, String billingPeriod);
+
+    long countByStatus(InvoiceStatus status);
+
+    @Query("SELECT COALESCE(SUM(i.total), 0) FROM Invoice i WHERE i.status = :status")
+    BigDecimal sumTotalByStatus(@Param("status") InvoiceStatus status);
+
+    Page<Invoice> findByDateBetween(LocalDateTime from, LocalDateTime to, Pageable pageable);
+
+    Page<Invoice> findByStatusAndDateBetween(InvoiceStatus status, LocalDateTime from, LocalDateTime to, Pageable pageable);
 }

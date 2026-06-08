@@ -9,9 +9,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import dev.jgunsett.inmobiliaria.application.dto.contract.ContractCreateRequest;
 import dev.jgunsett.inmobiliaria.application.dto.contract.ContractAdjustmentCreateRequest;
 import dev.jgunsett.inmobiliaria.application.dto.contract.ContractAdjustmentResponse;
+import dev.jgunsett.inmobiliaria.application.dto.contract.ContractCreateRequest;
+import dev.jgunsett.inmobiliaria.application.dto.contract.ContractEventResponse;
 import dev.jgunsett.inmobiliaria.application.dto.contract.ContractResponse;
 import dev.jgunsett.inmobiliaria.application.dto.contract.ContractUpdateRequest;
 import dev.jgunsett.inmobiliaria.application.service.ContractService;
@@ -64,6 +65,15 @@ public class ContractController {
 	) {
 	    return contractService.findByStatus(status, page, size);
 	}
+
+	@GetMapping("/expiring")
+	public Page<ContractResponse> getExpiring(
+	        @RequestParam(defaultValue = "60") int days,
+	        @RequestParam(defaultValue = "0") int page,
+	        @RequestParam(defaultValue = "10") int size
+	) {
+	    return contractService.findExpiring(days, page, size);
+	}
 	
 	@PostMapping("/{id}/activate")
 	public ResponseEntity<ContractResponse> activate(@PathVariable Long id) {
@@ -102,6 +112,11 @@ public class ContractController {
 	        @Valid @RequestBody ContractAdjustmentCreateRequest request) {
 
 	    return contractService.addAdjustment(id, request);
+	}
+
+	@GetMapping("/{id}/events")
+	public ResponseEntity<List<ContractEventResponse>> getEvents(@PathVariable Long id) {
+	    return ResponseEntity.ok(contractService.getEvents(id));
 	}
 
 	@GetMapping("/{id}/rental-amount")

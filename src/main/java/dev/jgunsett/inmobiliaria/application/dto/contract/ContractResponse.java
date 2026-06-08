@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+import dev.jgunsett.inmobiliaria.domain.enums.AdjustmentFrequency;
 import dev.jgunsett.inmobiliaria.domain.enums.BillingFrequency;
 import dev.jgunsett.inmobiliaria.domain.enums.ContractStatus;
 import dev.jgunsett.inmobiliaria.domain.enums.ContractType;
@@ -32,6 +33,7 @@ public class ContractResponse {
 	
 	private BigDecimal baseRentalAmount;
 	private LocalDate firstAdjustmentDate;
+	private AdjustmentFrequency adjustmentFrequency;
 	private Currency currency;
 	private BillingFrequency billingFrequency;
 	
