@@ -40,7 +40,16 @@ public class PropertyResponse {
 	private Double rentPrice;
 	
 	private String fullAddress;
-	
+
+	private String street;
+	private String numeration;
+	private String floor;
+	private String department;
+	private String zipCode;
+	private String city;
+	private String province;
+	private String country;
+
 	private Set<Amenity> amenities = new HashSet<>();
 	
 	private Integer bathrooms;

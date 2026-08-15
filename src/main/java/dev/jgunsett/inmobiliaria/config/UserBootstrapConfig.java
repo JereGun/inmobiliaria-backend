@@ -29,6 +29,10 @@ public class UserBootstrapConfig {
 
 		return args -> {
 			if (enabled && userRepository.count() == 0) {
+				if (email == null || email.isBlank() || password == null || password.isBlank()) {
+					throw new IllegalStateException(
+							"BOOTSTRAP_ADMIN_EMAIL y BOOTSTRAP_ADMIN_PASSWORD son obligatorios al habilitar el admin inicial.");
+				}
 				User admin = User.builder()
 						.email(email)
 						.password(passwordEncoder.encode(password))

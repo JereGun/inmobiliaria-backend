@@ -23,8 +23,13 @@ import dev.jgunsett.inmobiliaria.application.mapper.PropertyMapper;
 import dev.jgunsett.inmobiliaria.domain.entity.Customer;
 import dev.jgunsett.inmobiliaria.domain.entity.Property;
 import dev.jgunsett.inmobiliaria.domain.entity.PropertyImage;
+import dev.jgunsett.inmobiliaria.domain.enums.Amenity;
 import dev.jgunsett.inmobiliaria.domain.enums.ContractStatus;
 import dev.jgunsett.inmobiliaria.domain.enums.OperationType;
+import dev.jgunsett.inmobiliaria.domain.enums.PropertyStatus;
+import dev.jgunsett.inmobiliaria.domain.enums.PropertyType;
+
+import java.util.Set;
 import dev.jgunsett.inmobiliaria.exception.BusinessException;
 import dev.jgunsett.inmobiliaria.exception.IllegalStateException;
 import dev.jgunsett.inmobiliaria.exception.ResourceNotFoundException;
@@ -58,6 +63,7 @@ public class PropertyService {
 	            .owner(owner)
 	            .propertyType(req.getPropertyType())
 	            .operationTypes(req.getOperationTypes())
+	            .status(PropertyStatus.AVAILABLE)
 	            .salePrice(req.getSalePrice())
 	            .rentPrice(req.getRentPrice())
 	            .street(req.getStreet())
@@ -360,6 +366,83 @@ public class PropertyService {
 	    }
 	}
 	
+	// ---- Métodos públicos (sin auth) ----
+
+	@Transactional(readOnly = true)
+	public Page<PropertyResponse> findPublicAll(int page, int size) {
+		Pageable pageable = PageRequest.of(page, size);
+		return propertyRepository.findAllByStatus(PropertyStatus.AVAILABLE, pageable)
+				.map(p -> {
+					p.getOperationTypes().size();
+					p.getAmenities().size();
+					p.getImages().size();
+					return PropertyMapper.toResponse(p);
+				});
+	}
+
+	@Transactional(readOnly = true)
+	public Page<PropertyResponse> findPublicByOperation(OperationType operation, int page, int size) {
+		Pageable pageable = PageRequest.of(page, size);
+		return propertyRepository.findByOperationTypeAndStatus(operation, PropertyStatus.AVAILABLE, pageable)
+				.map(p -> {
+					p.getOperationTypes().size();
+					p.getAmenities().size();
+					p.getImages().size();
+					return PropertyMapper.toResponse(p);
+				});
+	}
+
+	@Transactional(readOnly = true)
+	public PropertyResponse findPublicById(Long id) {
+		Property property = propertyRepository.findById(id)
+				.orElseThrow(() -> new ResourceNotFoundException("No existe propiedad con el ID " + id));
+
+		if (property.getStatus() != null && property.getStatus() != PropertyStatus.AVAILABLE) {
+			throw new ResourceNotFoundException("No existe propiedad con el ID " + id);
+		}
+
+		property.getOperationTypes().size();
+		property.getAmenities().size();
+		property.getImages().size();
+		return PropertyMapper.toResponse(property);
+	}
+
+	@Transactional(readOnly = true)
+	public Page<PropertySearchResponse> searchPublic(String query, Pageable pageable) {
+		if (query == null || query.isBlank()) {
+			throw new BusinessException("Query de búsqueda vacía");
+		}
+		return propertyRepository.search(query, pageable);
+	}
+
+	@Transactional(readOnly = true)
+	public Page<PropertyResponse> findPublicFiltered(
+			OperationType operationType,
+			PropertyType propertyType,
+			Double minPrice,
+			Double maxPrice,
+			Integer minBedrooms,
+			Integer minBathrooms,
+			Set<Amenity> amenities,
+			String city,
+			int page,
+			int size
+	) {
+		Pageable pageable = PageRequest.of(page, size);
+		var spec = PropertySpecification.publicFilter(
+				operationType, propertyType, minPrice, maxPrice,
+				minBedrooms, minBathrooms, amenities, city
+		);
+		return propertyRepository.findAll(spec, pageable).map(p -> {
+			p.getOperationTypes().size();
+			p.getAmenities().size();
+			p.getImages().size();
+			return PropertyMapper.toResponse(p);
+		});
+	}
+
+	// ---- Fin métodos públicos ----
+
 	@Transactional(readOnly = true)
 	public Page<PropertySearchResponse> search(String query, Pageable pageable) {
 	    if (query == null || query.isBlank()) {

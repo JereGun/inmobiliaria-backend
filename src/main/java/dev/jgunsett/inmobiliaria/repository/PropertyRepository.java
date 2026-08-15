@@ -4,6 +4,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -17,7 +18,7 @@ import java.util.List;
 
 
 @Repository
-public interface PropertyRepository extends JpaRepository<Property, Long> {
+public interface PropertyRepository extends JpaRepository<Property, Long>, JpaSpecificationExecutor<Property> {
 	
 	List<Property> findByStatus(PropertyStatus status);
 	
@@ -33,6 +34,16 @@ public interface PropertyRepository extends JpaRepository<Property, Long> {
 			OperationType operation,
 			Pageable pageable
 	);
+
+	@Query("SELECT p FROM Property p JOIN p.operationTypes op WHERE op = :operation AND (p.status = :status OR p.status IS NULL)")
+	Page<Property> findByOperationTypeAndStatus(
+			@Param("operation") OperationType operation,
+			@Param("status") PropertyStatus status,
+			Pageable pageable
+	);
+
+	@Query("SELECT p FROM Property p WHERE p.status = :status OR p.status IS NULL")
+	Page<Property> findAllByStatus(@Param("status") PropertyStatus status, Pageable pageable);
 	
 	@Query("""
 		    SELECT new dev.jgunsett.inmobiliaria.application.dto.property.PropertySearchResponse(
