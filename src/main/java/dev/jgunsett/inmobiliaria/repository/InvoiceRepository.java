@@ -23,6 +23,16 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     // Buscar facturas por cliente
     Page<Invoice> findByCustomer(Customer customer, Pageable pageable);
 
+    Page<Invoice> findByCustomerIdAndStatusIn(Long customerId, Collection<InvoiceStatus> statuses, Pageable pageable);
+
+    long countByCustomerIdAndStatusInAndDueDateBefore(
+            Long customerId,
+            Collection<InvoiceStatus> statuses,
+            LocalDate dueDate
+    );
+
+    java.util.Optional<Invoice> findByIdAndCustomerId(Long id, Long customerId);
+
     // Buscar facturas por contrato (alquiler)
     Page<Invoice> findByContract(Contract contract, Pageable pageable);
 
@@ -53,6 +63,12 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     @Query("SELECT COALESCE(SUM(i.total), 0) FROM Invoice i WHERE i.status = :status")
     BigDecimal sumTotalByStatus(@Param("status") InvoiceStatus status);
+
+    @Query("SELECT COALESCE(SUM(i.total), 0) FROM Invoice i WHERE i.customer.id = :customerId AND i.status IN :statuses")
+    BigDecimal sumTotalByCustomerIdAndStatusIn(
+            @Param("customerId") Long customerId,
+            @Param("statuses") Collection<InvoiceStatus> statuses
+    );
 
     Page<Invoice> findByDateBetween(LocalDateTime from, LocalDateTime to, Pageable pageable);
 

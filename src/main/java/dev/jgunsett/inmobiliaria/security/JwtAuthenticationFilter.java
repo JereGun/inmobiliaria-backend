@@ -29,6 +29,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	private final CustomUserDetailsService userDetailsService;
 
 	@Override
+	protected boolean shouldNotFilter(@NonNull HttpServletRequest request) {
+		String path = request.getRequestURI();
+		// Las rutas del portal de inquilinos usan su propio JWT. Las administrativas
+		// siguen usando el JWT interno para que el personal pueda gestionar accesos.
+		return path.startsWith("/api/v1/tenant-portal/")
+				&& !path.startsWith("/api/v1/tenant-portal/admin/");
+	}
+
+	@Override
 	protected void doFilterInternal(
 			@NonNull HttpServletRequest request,
 			@NonNull HttpServletResponse response,

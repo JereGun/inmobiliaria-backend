@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import dev.jgunsett.inmobiliaria.domain.entity.Pay;
+import dev.jgunsett.inmobiliaria.domain.enums.InvoiceStatus;
 
 public interface PayRepository extends JpaRepository<Pay, Long> {
 	
@@ -20,6 +21,17 @@ public interface PayRepository extends JpaRepository<Pay, Long> {
 
     @Query("SELECT COALESCE(SUM(p.amount), 0) FROM Pay p WHERE p.invoice.id = :invoiceId")
     BigDecimal sumAmountByInvoiceId(@Param("invoiceId") Long invoiceId);
+
+    @Query("""
+            SELECT COALESCE(SUM(p.amount), 0)
+            FROM Pay p
+            WHERE p.invoice.customer.id = :customerId
+              AND p.invoice.status IN :statuses
+        """)
+    BigDecimal sumAmountByCustomerIdAndInvoiceStatusIn(
+            @Param("customerId") Long customerId,
+            @Param("statuses") List<InvoiceStatus> statuses
+    );
 
 	Page<Pay> findByDateBetween(LocalDate from, LocalDate to, Pageable pageable);
 
