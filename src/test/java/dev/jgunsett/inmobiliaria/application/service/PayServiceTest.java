@@ -24,6 +24,7 @@ import dev.jgunsett.inmobiliaria.domain.enums.InvoiceType;
 import dev.jgunsett.inmobiliaria.domain.enums.PayMedium;
 import dev.jgunsett.inmobiliaria.exception.ResourceNotFoundException;
 import dev.jgunsett.inmobiliaria.repository.InvoiceRepository;
+import dev.jgunsett.inmobiliaria.repository.NotificationRepository;
 import dev.jgunsett.inmobiliaria.repository.PayRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -31,6 +32,8 @@ class PayServiceTest {
 
     @Mock private PayRepository payRepository;
     @Mock private InvoiceRepository invoiceRepository;
+    @Mock private NotificationRepository notificationRepository;
+    @Mock private LateFeeService lateFeeService;
 
     // -------------------------------------------------------------------------
     // create()
@@ -48,6 +51,7 @@ class PayServiceTest {
                 .build();
 
         when(invoiceRepository.findById(10L)).thenReturn(Optional.of(invoice));
+        when(payRepository.sumAmountByInvoiceId(10L)).thenReturn(BigDecimal.ZERO);
         when(payRepository.save(any())).thenReturn(saved);
 
         var response = service().create(createRequest());
@@ -59,6 +63,7 @@ class PayServiceTest {
         assertThat(captor.getValue().getAmount()).isEqualByComparingTo("50000");
         assertThat(captor.getValue().getMedium()).isEqualTo(PayMedium.BANK_TRANSFER);
         assertThat(response.getId()).isEqualTo(1L);
+        assertThat(invoice.getStatus()).isEqualTo(InvoiceStatus.PARTIALLY_PAID);
     }
 
     @Test
@@ -67,6 +72,35 @@ class PayServiceTest {
 
         assertThatThrownBy(() -> service().create(createRequest()))
                 .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void createMarksInvoiceAsPaidWhenPaymentCoversOutstandingBalance() {
+        Invoice invoice = invoice();
+        invoice.setTotal(new BigDecimal("50000"));
+        when(invoiceRepository.findById(10L)).thenReturn(Optional.of(invoice));
+        when(payRepository.sumAmountByInvoiceId(10L)).thenReturn(BigDecimal.ZERO);
+        when(payRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(notificationRepository.findByInvoiceIdAndTypeAndReadFalse(any(), any())).thenReturn(java.util.List.of());
+
+        service().create(createRequest());
+
+        assertThat(invoice.getStatus()).isEqualTo(InvoiceStatus.PAID);
+    }
+
+    @Test
+    void createRejectsPaymentAboveOutstandingBalance() {
+        Invoice invoice = invoice();
+        invoice.setTotal(new BigDecimal("50000"));
+        when(invoiceRepository.findById(10L)).thenReturn(Optional.of(invoice));
+        when(payRepository.sumAmountByInvoiceId(10L)).thenReturn(BigDecimal.ZERO);
+
+        PayCreateRequest request = createRequest();
+        request.setAmount(new BigDecimal("50001"));
+
+        assertThatThrownBy(() -> service().create(request))
+                .isInstanceOf(dev.jgunsett.inmobiliaria.exception.BusinessException.class)
+                .hasMessageContaining("saldo pendiente");
     }
 
     // -------------------------------------------------------------------------
@@ -86,7 +120,7 @@ class PayServiceTest {
     // -------------------------------------------------------------------------
 
     private PayService service() {
-        return new PayService(payRepository, invoiceRepository);
+        return new PayService(payRepository, invoiceRepository, notificationRepository, lateFeeService);
     }
 
     private Invoice invoice() {
@@ -94,6 +128,7 @@ class PayServiceTest {
                 .id(10L)
                 .type(InvoiceType.RENT)
                 .status(InvoiceStatus.ISSUED)
+                .total(new BigDecimal("100000"))
                 .build();
     }
 

@@ -2,6 +2,8 @@ package dev.jgunsett.inmobiliaria.repository;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 
 import org.springframework.data.domain.Page;
@@ -33,10 +35,16 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     // Buscar factura por código
     boolean existsByCode(String code);
 
-    List<Invoice> findByTypeAndStatusAndDateBefore(
+    List<Invoice> findByTypeAndStatusInAndDueDateBefore(
             InvoiceType type,
-            InvoiceStatus status,
-            LocalDateTime date
+            Collection<InvoiceStatus> statuses,
+            java.time.LocalDate dueDate
+    );
+
+    List<Invoice> findByTypeAndStatusInAndDueDateLessThanEqual(
+            InvoiceType type,
+            Collection<InvoiceStatus> statuses,
+            LocalDate dueDate
     );
 
     boolean existsByContractIdAndBillingPeriod(Long contractId, String billingPeriod);

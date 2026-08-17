@@ -18,4 +18,6 @@ public class InvoiceLineResponse {
     private BigDecimal unitPrice;
 
     private BigDecimal subtotal;
+
+    private Boolean lateFee;
 }

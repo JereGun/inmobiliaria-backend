@@ -1,5 +1,6 @@
 package dev.jgunsett.inmobiliaria.application.dto.invoice;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -22,6 +23,9 @@ public class InvoiceCreateRequest {
 
     @NotNull
     private LocalDateTime date;
+
+    /** Fecha de vencimiento. Si se omite, se utiliza la fecha de emisión. */
+    private LocalDate dueDate;
 
     @Valid
     @NotEmpty

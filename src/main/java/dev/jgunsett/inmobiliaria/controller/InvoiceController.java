@@ -2,6 +2,8 @@ package dev.jgunsett.inmobiliaria.controller;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.security.Principal;
 
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -11,17 +13,23 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import dev.jgunsett.inmobiliaria.application.dto.invoice.InvoiceCreateRequest;
+import dev.jgunsett.inmobiliaria.application.dto.invoice.InvoiceBatchRequest;
+import dev.jgunsett.inmobiliaria.application.dto.invoice.InvoiceBatchResponse;
+import dev.jgunsett.inmobiliaria.application.dto.invoice.InvoiceDeliveryResponse;
+import dev.jgunsett.inmobiliaria.application.dto.invoice.InvoiceLateFeeRequest;
 import dev.jgunsett.inmobiliaria.application.dto.invoice.InvoiceResponse;
 import dev.jgunsett.inmobiliaria.application.dto.invoice.InvoiceUpdateRequest;
 import dev.jgunsett.inmobiliaria.application.service.InvoiceService;
 import dev.jgunsett.inmobiliaria.domain.enums.InvoiceStatus;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @RestController
 @RequestMapping("/api/v1/invoices")
 @RequiredArgsConstructor
 @Validated
+@Slf4j
 public class InvoiceController {
 
     private final InvoiceService invoiceService;
@@ -29,7 +37,10 @@ public class InvoiceController {
     // Crear Invoice
     @PostMapping
     public ResponseEntity<InvoiceResponse> create(
-            @Valid @RequestBody InvoiceCreateRequest request) {
+            @Valid @RequestBody InvoiceCreateRequest request,
+            Principal principal) {
+
+        log.info("Solicitud de creación de factura recibida para {}", principal.getName());
 
         InvoiceResponse response = invoiceService.create(request);
 
@@ -98,6 +109,43 @@ public class InvoiceController {
         InvoiceResponse response = invoiceService.issue(id);
 
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{id}/revert-to-draft")
+    public ResponseEntity<InvoiceResponse> revertToDraft(
+            @PathVariable Long id) {
+        return ResponseEntity.ok(invoiceService.revertToDraft(id));
+    }
+
+    @PostMapping("/batch/issue")
+    public ResponseEntity<InvoiceBatchResponse> issueBatch(
+            @Valid @RequestBody InvoiceBatchRequest request) {
+        return ResponseEntity.ok(invoiceService.issueBatch(request.getInvoiceIds()));
+    }
+
+    @PostMapping("/{id}/send")
+    public ResponseEntity<InvoiceDeliveryResponse> send(
+            @PathVariable Long id) {
+        return ResponseEntity.ok(invoiceService.send(id));
+    }
+
+    @PostMapping("/batch/send")
+    public ResponseEntity<InvoiceBatchResponse> sendBatch(
+            @Valid @RequestBody InvoiceBatchRequest request) {
+        return ResponseEntity.ok(invoiceService.sendBatch(request.getInvoiceIds()));
+    }
+
+    @PatchMapping("/{id}/late-fee")
+    public ResponseEntity<InvoiceResponse> applyLateFeeManually(
+            @PathVariable Long id,
+            @Valid @RequestBody InvoiceLateFeeRequest request) {
+        return ResponseEntity.ok(invoiceService.applyLateFeeManually(id, request));
+    }
+
+    @GetMapping("/{id}/deliveries")
+    public ResponseEntity<List<InvoiceDeliveryResponse>> getDeliveries(
+            @PathVariable Long id) {
+        return ResponseEntity.ok(invoiceService.getDeliveries(id));
     }
 
     @PostMapping("/{id}/pay")

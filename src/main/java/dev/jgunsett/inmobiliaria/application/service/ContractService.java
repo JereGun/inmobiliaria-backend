@@ -118,6 +118,10 @@ public class ContractService {
 			throw new BusinessException("El monto base de alquiler debe ser mayor a cero");
 		}
 
+		if (req.getLateFeePercentage() != null && req.getLateFeePercentage().compareTo(BigDecimal.ZERO) < 0) {
+			throw new BusinessException("El interés diario por mora no puede ser negativo");
+		}
+
 		if (req.getFirstAdjustmentDate().isBefore(req.getStartDate())) {
 			throw new BusinessException(
 				"La fecha del primer ajuste no puede ser anterior al inicio del contrato"
@@ -135,6 +139,7 @@ public class ContractService {
 				.adjustmentFrequency(req.getAdjustmentFrequency())
 				.currency(req.getCurrency())
 				.billingFrequency(req.getBillingFrequency())
+				.paymentDueDay(req.getPaymentDueDay() == null ? 1 : req.getPaymentDueDay())
 				.contractType(req.getContractType())
 				.lateFeePercentage(req.getLateFeePercentage())
 				.build();
@@ -187,6 +192,10 @@ public class ContractService {
 				throw new BusinessException("El cargo por mora no puede ser negativo");
 			}
 			contract.setLateFeePercentage(req.getLateFeePercentage());
+		}
+
+		if (req.getPaymentDueDay() != null) {
+			contract.setPaymentDueDay(req.getPaymentDueDay());
 		}
 	    
 		Contract saved = contractRepository.save(contract);

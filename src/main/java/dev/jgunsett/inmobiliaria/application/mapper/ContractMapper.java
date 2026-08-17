@@ -24,6 +24,7 @@ public class ContractMapper {
 				.adjustmentFrequency(c.getAdjustmentFrequency())
 				.currency(c.getCurrency())
 				.billingFrequency(c.getBillingFrequency())
+				.paymentDueDay(c.getPaymentDueDay())
 				.status(c.getStatus())
 				.contractType(c.getContractType())
 				.lateFeePercentage(c.getLateFeePercentage())

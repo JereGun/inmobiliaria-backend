@@ -3,6 +3,7 @@ package dev.jgunsett.inmobiliaria.domain.entity;
 import jakarta.persistence.Entity;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,6 +16,12 @@ import lombok.*;
 @Entity
 @Table(
 		name = "invoice",
+		uniqueConstraints = {
+				@UniqueConstraint(
+						name = "uk_invoice_contract_billing_period",
+						columnNames = {"contract_id", "billing_period"}
+				)
+		},
 	    indexes = {
 	            @Index(name = "idx_invoice_code", columnList = "code"),
 	            @Index(name = "idx_invoice_status", columnList = "status"),
@@ -54,14 +61,21 @@ public class Invoice {
     @Column(nullable = false)
     private LocalDateTime date;
 
+    @Column(name = "due_date", nullable = false)
+    private LocalDate dueDate;
+
     @Column(nullable = false, precision = 15, scale = 2)
     private BigDecimal total;
+
+    @Column(name = "late_fee_daily_percentage", precision = 8, scale = 4)
+    private BigDecimal lateFeeDailyPercentage;
 
     @OneToMany(
         mappedBy = "invoice",
         cascade = CascadeType.ALL,
         orphanRemoval = true
     )
+    @Builder.Default
     private List<InvoiceLine> lines = new ArrayList<>();
 
     @Column(nullable = false)

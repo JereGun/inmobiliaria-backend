@@ -16,11 +16,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 import dev.jgunsett.inmobiliaria.application.dto.company.CompanyResponse;
 import dev.jgunsett.inmobiliaria.application.dto.company.CompanyUpdateRequest;
+import dev.jgunsett.inmobiliaria.application.dto.invoice.InvoiceReminderRunResponse;
 import dev.jgunsett.inmobiliaria.application.dto.setting.SystemSettingCreateRequest;
 import dev.jgunsett.inmobiliaria.application.dto.setting.SystemSettingResponse;
 import dev.jgunsett.inmobiliaria.application.dto.setting.SystemSettingUpdateRequest;
 import dev.jgunsett.inmobiliaria.application.service.CompanyService;
+import dev.jgunsett.inmobiliaria.application.service.InvoiceReminderService;
 import dev.jgunsett.inmobiliaria.application.service.SystemSettingService;
+import java.time.LocalDate;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
@@ -32,6 +35,7 @@ public class ConfigController {
 
 	private final CompanyService companyService;
 	private final SystemSettingService systemSettingService;
+	private final InvoiceReminderService invoiceReminderService;
 
 	@GetMapping("/company")
 	@PreAuthorize("hasAuthority('CONFIG_READ')")
@@ -79,5 +83,14 @@ public class ConfigController {
 			@Valid @RequestBody SystemSettingUpdateRequest request) {
 
 		return ResponseEntity.ok(systemSettingService.update(key, request));
+	}
+
+	@PostMapping("/reminders/run")
+	@PreAuthorize("hasAuthority('CONFIG_WRITE')")
+	public ResponseEntity<InvoiceReminderRunResponse> runInvoiceReminders() {
+		return ResponseEntity.ok(InvoiceReminderRunResponse.builder()
+				.date(LocalDate.now())
+				.sent(invoiceReminderService.sendScheduledReminders())
+				.build());
 	}
 }

@@ -57,11 +57,13 @@ public class SecurityConfig {
             .authenticationProvider(authenticationProvider())
             .exceptionHandling(exceptions -> exceptions
                 .authenticationEntryPoint((request, response, authException) -> {
+                    String failure = (String) request.getAttribute(JwtAuthenticationFilter.JWT_FAILURE_ATTRIBUTE);
+                    String message = failure != null ? failure : "No autenticado";
                     response.setStatus(HttpStatus.UNAUTHORIZED.value());
                     response.setContentType("application/json");
                     response.getWriter().write("""
-                            {"status":401,"message":"No autenticado","timestamp":"%s"}"""
-                            .formatted(LocalDateTime.now()));
+                            {"status":401,"message":"%s","timestamp":"%s"}"""
+                            .formatted(message, LocalDateTime.now()));
                 })
                 .accessDeniedHandler((request, response, accessDeniedException) -> {
                     response.setStatus(HttpStatus.FORBIDDEN.value());
@@ -80,6 +82,7 @@ public class SecurityConfig {
                     "/uploads/**",
                     "/swagger-ui/**",
                     "/v3/api-docs/**",
+                    "/error",
                     "/actuator/health"
                 ).permitAll()
                 .requestMatchers("/api/v1/users/**").hasRole("ADMIN")

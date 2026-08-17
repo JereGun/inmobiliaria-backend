@@ -35,6 +35,10 @@ public class InvoiceLine {
     @Column(nullable = false, precision = 15, scale = 2)
     private BigDecimal subtotal;
 
+    @Column(name = "late_fee", nullable = false)
+    @Builder.Default
+    private Boolean lateFee = false;
+
     private LocalDateTime creationDate;
     private LocalDateTime modificationDate;
 

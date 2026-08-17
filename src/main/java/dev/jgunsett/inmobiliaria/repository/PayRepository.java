@@ -14,7 +14,12 @@ import dev.jgunsett.inmobiliaria.domain.entity.Pay;
 
 public interface PayRepository extends JpaRepository<Pay, Long> {
 	
-	List<Pay> findByInvoiceId(Long invoiceId);
+    List<Pay> findByInvoiceId(Long invoiceId);
+
+    boolean existsByInvoiceId(Long invoiceId);
+
+    @Query("SELECT COALESCE(SUM(p.amount), 0) FROM Pay p WHERE p.invoice.id = :invoiceId")
+    BigDecimal sumAmountByInvoiceId(@Param("invoiceId") Long invoiceId);
 
 	Page<Pay> findByDateBetween(LocalDate from, LocalDate to, Pageable pageable);
 

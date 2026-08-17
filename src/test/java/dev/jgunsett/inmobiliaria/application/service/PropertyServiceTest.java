@@ -145,7 +145,7 @@ class PropertyServiceTest {
         assertThatThrownBy(() -> service().delete(1L))
                 .isInstanceOf(ResourceNotFoundException.class);
 
-        verify(propertyRepository, never()).delete(any());
+        verify(propertyRepository, never()).delete(any(Property.class));
     }
 
     @Test
@@ -157,7 +157,7 @@ class PropertyServiceTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("contrato");
 
-        verify(propertyRepository, never()).delete(any());
+        verify(propertyRepository, never()).delete(any(Property.class));
     }
 
     @Test

@@ -32,6 +32,7 @@ import dev.jgunsett.inmobiliaria.repository.ContractRepository;
 import dev.jgunsett.inmobiliaria.repository.CustomerRepository;
 import dev.jgunsett.inmobiliaria.repository.InvoiceRepository;
 import dev.jgunsett.inmobiliaria.repository.NotificationRepository;
+import dev.jgunsett.inmobiliaria.repository.PayRepository;
 
 @ExtendWith(MockitoExtension.class)
 class InvoiceServiceTest {
@@ -41,6 +42,9 @@ class InvoiceServiceTest {
     @Mock private ContractRepository contractRepository;
     @Mock private InvoiceMapper invoiceMapper;
     @Mock private NotificationRepository notificationRepository;
+    @Mock private InvoiceDeliveryService invoiceDeliveryService;
+    @Mock private LateFeeService lateFeeService;
+    @Mock private PayRepository payRepository;
 
     // -------------------------------------------------------------------------
     // create()
@@ -140,6 +144,30 @@ class InvoiceServiceTest {
                 .hasMessageContaining("lineas");
     }
 
+    @Test
+    void revertToDraftAllowsIssuedInvoiceWithoutPayments() {
+        Invoice invoice = issuedInvoice();
+        when(invoiceRepository.findById(5L)).thenReturn(Optional.of(invoice));
+        when(payRepository.existsByInvoiceId(5L)).thenReturn(false);
+        when(invoiceMapper.toResponse(any())).thenReturn(null);
+
+        service().revertToDraft(5L);
+
+        assertThat(invoice.getStatus()).isEqualTo(InvoiceStatus.DRAFT);
+        verify(invoiceDeliveryService).resetForReissue(invoice);
+    }
+
+    @Test
+    void revertToDraftRejectsInvoiceWithPayments() {
+        Invoice invoice = issuedInvoice();
+        when(invoiceRepository.findById(5L)).thenReturn(Optional.of(invoice));
+        when(payRepository.existsByInvoiceId(5L)).thenReturn(true);
+
+        assertThatThrownBy(() -> service().revertToDraft(5L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("pagos");
+    }
+
     // -------------------------------------------------------------------------
     // pay()
     // -------------------------------------------------------------------------
@@ -223,7 +251,7 @@ class InvoiceServiceTest {
     private InvoiceService service() {
         return new InvoiceService(
                 invoiceRepository, customerRepository, contractRepository,
-                invoiceMapper, notificationRepository);
+                invoiceMapper, notificationRepository, invoiceDeliveryService, lateFeeService, payRepository);
     }
 
     private Customer customer() {

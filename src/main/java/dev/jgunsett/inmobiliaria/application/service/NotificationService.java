@@ -108,16 +108,16 @@ public class NotificationService {
 
     @Transactional
     public int createOverdueRentNotifications(LocalDate today) {
-        LocalDateTime overdueLimit = today.minusDays(overdueRentGraceDays).atStartOfDay();
+        LocalDate overdueLimit = today.minusDays(overdueRentGraceDays);
         List<User> users = userRepository.findByActiveTrue();
 
         if (users.isEmpty()) {
             return 0;
         }
 
-        return invoiceRepository.findByTypeAndStatusAndDateBefore(
+        return invoiceRepository.findByTypeAndStatusInAndDueDateBefore(
                         InvoiceType.RENT,
-                        InvoiceStatus.ISSUED,
+                        List.of(InvoiceStatus.ISSUED, InvoiceStatus.PARTIALLY_PAID),
                         overdueLimit
                 )
                 .stream()
@@ -215,7 +215,7 @@ public class NotificationService {
             return 0;
         }
 
-        LocalDate dueDate = invoice.getDate().toLocalDate();
+        LocalDate dueDate = invoice.getDueDate();
         String title = "Alquiler vencido";
         String message = buildOverdueRentMessage(invoice, dueDate);
 

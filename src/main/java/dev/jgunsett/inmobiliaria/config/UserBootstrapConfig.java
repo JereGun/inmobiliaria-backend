@@ -50,6 +50,14 @@ public class UserBootstrapConfig {
 	private void bootstrapEmailSettings(SystemSettingRepository repo) {
 		List<SystemSetting> defaults = List.of(
 			setting("invoice.auto-generation.enabled", "false", SettingType.BOOLEAN),
+			setting("invoice.auto-issue.enabled", "false", SettingType.BOOLEAN),
+			setting("invoice.auto-send.enabled", "false", SettingType.BOOLEAN),
+			setting("invoice.late-fees.auto-apply.enabled", "false", SettingType.BOOLEAN),
+			setting("invoice.reminders.enabled", "false", SettingType.BOOLEAN),
+			setting("invoice.reminders.days-before", "2", SettingType.NUMBER),
+			setting("invoice.reminders.on-due-date.enabled", "true", SettingType.BOOLEAN),
+			setting("invoice.reminders.overdue.enabled", "true", SettingType.BOOLEAN),
+			setting("invoice.reminders.overdue-repeat-days", "7", SettingType.NUMBER),
 			setting("email.enabled", "false", SettingType.BOOLEAN),
 			setting("email.smtp.host", "smtp.example.com", SettingType.STRING),
 			setting("email.smtp.port", "587", SettingType.NUMBER),

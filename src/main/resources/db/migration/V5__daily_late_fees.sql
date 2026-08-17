@@ -1,0 +1,5 @@
+ALTER TABLE invoice
+    ADD COLUMN IF NOT EXISTS late_fee_daily_percentage NUMERIC(8,4);
+
+ALTER TABLE invoice_line
+    ADD COLUMN IF NOT EXISTS late_fee BOOLEAN NOT NULL DEFAULT FALSE;

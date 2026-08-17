@@ -36,6 +36,7 @@ public class ContractResponse {
 	private AdjustmentFrequency adjustmentFrequency;
 	private Currency currency;
 	private BillingFrequency billingFrequency;
+	private Integer paymentDueDay;
 	
 	private ContractStatus status;
 	private ContractType contractType;

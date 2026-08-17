@@ -1,6 +1,7 @@
 package dev.jgunsett.inmobiliaria.application.service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.data.domain.Page;
@@ -10,6 +11,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.jgunsett.inmobiliaria.application.dto.invoice.InvoiceCreateRequest;
+import dev.jgunsett.inmobiliaria.application.dto.invoice.InvoiceBatchItemResponse;
+import dev.jgunsett.inmobiliaria.application.dto.invoice.InvoiceBatchResponse;
+import dev.jgunsett.inmobiliaria.application.dto.invoice.InvoiceDeliveryResponse;
+import dev.jgunsett.inmobiliaria.application.dto.invoice.InvoiceLateFeeRequest;
 import dev.jgunsett.inmobiliaria.application.dto.invoice.InvoiceResponse;
 import dev.jgunsett.inmobiliaria.application.dto.invoice.InvoiceUpdateRequest;
 import dev.jgunsett.inmobiliaria.application.mapper.InvoiceMapper;
@@ -26,6 +31,7 @@ import dev.jgunsett.inmobiliaria.repository.ContractRepository;
 import dev.jgunsett.inmobiliaria.repository.CustomerRepository;
 import dev.jgunsett.inmobiliaria.repository.InvoiceRepository;
 import dev.jgunsett.inmobiliaria.repository.NotificationRepository;
+import dev.jgunsett.inmobiliaria.repository.PayRepository;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -56,6 +62,9 @@ public class InvoiceService {
     private final ContractRepository contractRepository;
     private final InvoiceMapper invoiceMapper;
     private final NotificationRepository notificationRepository;
+    private final InvoiceDeliveryService invoiceDeliveryService;
+    private final LateFeeService lateFeeService;
+    private final PayRepository payRepository;
 
     // Crear Invoice
     /**
@@ -98,6 +107,9 @@ public class InvoiceService {
         invoice.setCustomer(customer);
         invoice.setContract(contract);
         invoice.setStatus(InvoiceStatus.DRAFT);
+        if (contract != null) {
+            invoice.setLateFeeDailyPercentage(contract.getLateFeePercentage());
+        }
 
         // 4️ Generar código (simple por ahora)
         invoice.setCode(generateInvoiceCode());
@@ -146,6 +158,9 @@ public class InvoiceService {
 	    // 2️ Actualizar campos simples
 	    invoice.setType(request.getType());
 	    invoice.setDate(request.getDate());
+	    if (request.getDueDate() != null) {
+	     invoice.setDueDate(request.getDueDate());
+	    }
 	
 	    // 3️ Reemplazar líneas
 	    invoice.getLines().clear();
@@ -169,12 +184,13 @@ public class InvoiceService {
      * @param id identificador de la factura
      * @return factura encontrada
      */
-    @Transactional(readOnly = true)
     public InvoiceResponse getById(Long id) {
 
         Invoice invoice = invoiceRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "No se encontró Factura con el ID: " + id));
+
+        lateFeeService.updateLateFeeAutomatically(invoice, java.time.LocalDate.now());
 
         return invoiceMapper.toResponse(invoice);
     }
@@ -259,8 +275,105 @@ public class InvoiceService {
     	invoice.recalculateTotal();
     	
     	invoice.setStatus(InvoiceStatus.ISSUED);
+
+        if (invoice.getLateFeeDailyPercentage() == null && invoice.getContract() != null) {
+            invoice.setLateFeeDailyPercentage(invoice.getContract().getLateFeePercentage());
+        }
+
+        lateFeeService.updateLateFeeAutomatically(invoice, java.time.LocalDate.now());
+
+        invoiceDeliveryService.sendIfEnabled(invoice);
     	
     	return invoiceMapper.toResponse(invoice);
+    }
+
+    public InvoiceBatchResponse issueBatch(List<Long> invoiceIds) {
+        List<InvoiceBatchItemResponse> results = new ArrayList<>();
+        int succeeded = 0;
+
+        for (Long invoiceId : invoiceIds) {
+            try {
+                InvoiceResponse issued = issue(invoiceId);
+                succeeded++;
+                results.add(InvoiceBatchItemResponse.builder()
+                        .invoiceId(invoiceId)
+                        .code(issued.getCode())
+                        .success(true)
+                        .message("Factura emitida correctamente")
+                        .build());
+            } catch (RuntimeException ex) {
+                results.add(InvoiceBatchItemResponse.builder()
+                        .invoiceId(invoiceId)
+                        .code(findCodeSafely(invoiceId))
+                        .success(false)
+                        .message(ex.getMessage())
+                        .build());
+            }
+        }
+
+        return InvoiceBatchResponse.builder()
+                .requested(invoiceIds.size())
+                .succeeded(succeeded)
+                .failed(invoiceIds.size() - succeeded)
+                .results(results)
+                .build();
+    }
+
+    public InvoiceDeliveryResponse send(Long id) {
+        return invoiceDeliveryService.sendInvoice(id);
+    }
+
+    public InvoiceBatchResponse sendBatch(List<Long> invoiceIds) {
+        return invoiceDeliveryService.sendBatch(invoiceIds);
+    }
+
+    public InvoiceResponse applyLateFeeManually(Long id, InvoiceLateFeeRequest request) {
+        Invoice invoice = invoiceRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("No se encontró Factura con el ID: " + id));
+
+        if (invoice.getStatus() != InvoiceStatus.ISSUED
+                && invoice.getStatus() != InvoiceStatus.PARTIALLY_PAID) {
+            throw new BusinessException("Solo se puede aplicar mora a facturas emitidas o parcialmente pagadas");
+        }
+        if (invoice.getType() != dev.jgunsett.inmobiliaria.domain.enums.InvoiceType.RENT) {
+            throw new BusinessException("La mora manual solo aplica a facturas de alquiler");
+        }
+        if (invoice.getDueDate() == null || !invoice.getDueDate().isBefore(java.time.LocalDate.now())) {
+            throw new BusinessException("La factura debe estar vencida para aplicar interés por mora");
+        }
+
+        invoice.setLateFeeDailyPercentage(request.getDailyPercentage());
+        lateFeeService.updateLateFee(invoice, java.time.LocalDate.now());
+        return invoiceMapper.toResponse(invoice);
+    }
+
+    public InvoiceResponse revertToDraft(Long id) {
+        Invoice invoice = invoiceRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("No se encontró Factura con el ID: " + id));
+
+        if (invoice.getStatus() != InvoiceStatus.ISSUED) {
+            throw new BusinessException("Solo se puede volver a borrador una factura emitida sin pagos");
+        }
+        if (payRepository.existsByInvoiceId(id)) {
+            throw new BusinessException("No se puede volver a borrador una factura que tiene pagos registrados");
+        }
+
+        invoice.setStatus(InvoiceStatus.DRAFT);
+        invoiceDeliveryService.resetForReissue(invoice);
+        return invoiceMapper.toResponse(invoice);
+    }
+
+    @Transactional(readOnly = true)
+    public List<InvoiceDeliveryResponse> getDeliveries(Long id) {
+        return invoiceDeliveryService.findByInvoice(id);
+    }
+
+    private String findCodeSafely(Long invoiceId) {
+        try {
+            return invoiceRepository.findById(invoiceId).map(Invoice::getCode).orElse(null);
+        } catch (RuntimeException ignored) {
+            return null;
+        }
     }
     
     /**
@@ -280,8 +393,9 @@ public class InvoiceService {
     	Invoice invoice = invoiceRepository.findById(id)
     			.orElseThrow(() -> new ResourceNotFoundException("No se encontró Factura con el ID: " + id));
     	
-    	if (invoice.getStatus() != InvoiceStatus.ISSUED) {
-    		throw new BusinessException("Solo se pueden pagar facturas en estado ISSUED");
+        if (invoice.getStatus() != InvoiceStatus.ISSUED
+                && invoice.getStatus() != InvoiceStatus.PARTIALLY_PAID) {
+			throw new BusinessException("Solo se pueden pagar facturas en estado ISSUED o PARTIALLY_PAID");
     	}
     	
     	invoice.setStatus(InvoiceStatus.PAID);

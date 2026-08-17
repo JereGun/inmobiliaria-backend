@@ -1,5 +1,6 @@
 package dev.jgunsett.inmobiliaria.application.dto.invoice;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -17,6 +18,8 @@ public class InvoiceUpdateRequest {
 
     @NotNull
     private LocalDateTime date;
+
+    private LocalDate dueDate;
 
     @Valid
     @NotEmpty

@@ -57,6 +57,10 @@ public class Contract {
 	
 	@Enumerated(EnumType.STRING)
 	private BillingFrequency billingFrequency;
+
+	@Column(name = "payment_due_day", nullable = false)
+	@Builder.Default
+	private Integer paymentDueDay = 1;
 	
 	@Enumerated(EnumType.STRING)
 	@Builder.Default
