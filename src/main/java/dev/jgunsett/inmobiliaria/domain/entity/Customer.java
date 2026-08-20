@@ -56,6 +56,31 @@ public class Customer {
 	private String email;
 	
 	private String phone;
+
+	@Column(name = "whatsapp_phone", length = 30)
+	private String whatsappPhone;
+
+	@Column(name = "whatsapp_enabled", nullable = false)
+	@Builder.Default
+	private Boolean whatsappEnabled = false;
+
+	@Column(name = "whatsapp_invoice_enabled", nullable = false)
+	@Builder.Default
+	private Boolean whatsappInvoiceEnabled = false;
+
+	@Column(name = "whatsapp_payment_enabled", nullable = false)
+	@Builder.Default
+	private Boolean whatsappPaymentEnabled = false;
+
+	@Column(name = "whatsapp_reminder_enabled", nullable = false)
+	@Builder.Default
+	private Boolean whatsappReminderEnabled = false;
+
+	private LocalDateTime whatsappOptedInAt;
+	private LocalDateTime whatsappOptedOutAt;
+
+	@Column(name = "whatsapp_opt_in_source", length = 50)
+	private String whatsappOptInSource;
 	
 	private LocalDateTime creationDate;
 	

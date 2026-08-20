@@ -29,6 +29,11 @@ public class CustomerMapper {
                 .birthdate(request.getBirthdate())
                 .email(request.getEmail())
                 .phone(request.getPhone())
+                .whatsappPhone(request.getWhatsappPhone())
+                .whatsappEnabled(Boolean.TRUE.equals(request.getWhatsappEnabled()))
+                .whatsappInvoiceEnabled(Boolean.TRUE.equals(request.getWhatsappInvoiceEnabled()))
+                .whatsappPaymentEnabled(Boolean.TRUE.equals(request.getWhatsappPaymentEnabled()))
+                .whatsappReminderEnabled(Boolean.TRUE.equals(request.getWhatsappReminderEnabled()))
                 .build();
     }
 
@@ -50,6 +55,11 @@ public class CustomerMapper {
         customer.setBirthdate(request.getBirthdate());
         customer.setEmail(request.getEmail());
         customer.setPhone(request.getPhone());
+        customer.setWhatsappPhone(request.getWhatsappPhone());
+        if (request.getWhatsappEnabled() != null) customer.setWhatsappEnabled(request.getWhatsappEnabled());
+        if (request.getWhatsappInvoiceEnabled() != null) customer.setWhatsappInvoiceEnabled(request.getWhatsappInvoiceEnabled());
+        if (request.getWhatsappPaymentEnabled() != null) customer.setWhatsappPaymentEnabled(request.getWhatsappPaymentEnabled());
+        if (request.getWhatsappReminderEnabled() != null) customer.setWhatsappReminderEnabled(request.getWhatsappReminderEnabled());
     }
 
     /**
@@ -73,6 +83,14 @@ public class CustomerMapper {
                 .birthdate(customer.getBirthdate())
                 .email(customer.getEmail())
                 .phone(customer.getPhone())
+                .whatsappPhone(customer.getWhatsappPhone())
+                .whatsappEnabled(Boolean.TRUE.equals(customer.getWhatsappEnabled()))
+                .whatsappInvoiceEnabled(Boolean.TRUE.equals(customer.getWhatsappInvoiceEnabled()))
+                .whatsappPaymentEnabled(Boolean.TRUE.equals(customer.getWhatsappPaymentEnabled()))
+                .whatsappReminderEnabled(Boolean.TRUE.equals(customer.getWhatsappReminderEnabled()))
+                .whatsappOptedInAt(customer.getWhatsappOptedInAt())
+                .whatsappOptedOutAt(customer.getWhatsappOptedOutAt())
+                .whatsappOptInSource(customer.getWhatsappOptInSource())
                 .creationDate(customer.getCreationDate())
                 .modificationDate(customer.getModificationDate())
                 .build();

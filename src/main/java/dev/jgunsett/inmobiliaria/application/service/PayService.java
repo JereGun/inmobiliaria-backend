@@ -7,6 +7,7 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,7 +26,7 @@ import dev.jgunsett.inmobiliaria.repository.PayRepository;
 import lombok.RequiredArgsConstructor;
 
 @Service
-@RequiredArgsConstructor
+@RequiredArgsConstructor(onConstructor_ = @Autowired)
 @Transactional
 public class PayService {
 
@@ -33,6 +34,18 @@ public class PayService {
     private final InvoiceRepository invoiceRepository;
     private final NotificationRepository notificationRepository;
     private final LateFeeService lateFeeService;
+    private final WhatsAppNotificationService whatsappNotificationService;
+
+    // Mantiene compatibles las pruebas y consumidores que construyen el servicio
+    // sin el canal opcional de WhatsApp.
+    public PayService(
+            PayRepository payRepository,
+            InvoiceRepository invoiceRepository,
+            NotificationRepository notificationRepository,
+            LateFeeService lateFeeService
+    ) {
+        this(payRepository, invoiceRepository, notificationRepository, lateFeeService, null);
+    }
 
     public PayResponse create(PayCreateRequest request) {
 
@@ -88,6 +101,10 @@ public class PayService {
                         notification.setRead(true);
                         notification.setReadAt(java.time.LocalDateTime.now());
                     });
+        }
+
+        if (whatsappNotificationService != null) {
+            whatsappNotificationService.sendPayment(saved);
         }
 
         return PayMapper.toResponse(saved);

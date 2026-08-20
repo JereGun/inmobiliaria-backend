@@ -35,13 +35,14 @@ public class InvoiceReminderService {
     private final EmailSenderService emailSenderService;
     private final SystemSettingService systemSettingService;
     private final LateFeeService lateFeeService;
+    private final WhatsAppNotificationService whatsappNotificationService;
 
     public int sendScheduledReminders() {
         return sendScheduledReminders(LocalDate.now());
     }
 
     public int sendScheduledReminders(LocalDate today) {
-        if (!isEnabled("invoice.reminders.enabled")) {
+        if (!isEnabled("invoice.reminders.enabled") && !isEnabled("whatsapp.reminders.enabled")) {
             log.debug("Recordatorios de vencimiento deshabilitados");
             return 0;
         }
@@ -76,7 +77,7 @@ public class InvoiceReminderService {
             }
         }
 
-        log.info("Recordatorios de facturas: {} emails enviados el {}", sent, today);
+        log.info("Recordatorios de facturas: {} notificaciones enviadas el {}", sent, today);
         return sent;
     }
 
@@ -108,28 +109,31 @@ public class InvoiceReminderService {
         reminder.setLastAttemptAt(LocalDateTime.now());
         reminder.setLastError(null);
 
-        if (recipient == null || recipient.isBlank()) {
-            reminder.setStatus(InvoiceReminderStatus.FAILED);
-            reminder.setLastError("El cliente no tiene email configurado");
-            reminderRepository.save(reminder);
-            return 0;
+        EmailSendResult result = null;
+        boolean emailSent = false;
+        if (isEnabled("invoice.reminders.enabled") && recipient != null && !recipient.isBlank()) {
+            result = emailSenderService.sendNotificationEmail(
+                    recipient,
+                    subjectFor(invoice, type),
+                    messageFor(invoice, type, daysBefore)
+            );
+            emailSent = result.success();
         }
 
-        EmailSendResult result = emailSenderService.sendNotificationEmail(
-                recipient,
-                subjectFor(invoice, type),
-                messageFor(invoice, type, daysBefore)
-        );
-
-        if (result.success()) {
+        WhatsAppSendResult whatsappResult = whatsappNotificationService.sendReminder(
+                invoice, type, scheduledFor, daysBefore);
+        if (emailSent || whatsappResult.success()) {
             reminder.setStatus(InvoiceReminderStatus.SENT);
             reminder.setSentAt(LocalDateTime.now());
+            reminder.setLastError(null);
             reminderRepository.save(reminder);
             return 1;
         }
 
-        reminder.setStatus(result.skipped() ? InvoiceReminderStatus.SKIPPED : InvoiceReminderStatus.FAILED);
-        reminder.setLastError(result.message());
+        reminder.setStatus((result != null && result.skipped()) || whatsappResult.skipped()
+                ? InvoiceReminderStatus.SKIPPED
+                : InvoiceReminderStatus.FAILED);
+        reminder.setLastError(result != null ? result.message() : whatsappResult.message());
         reminderRepository.save(reminder);
         return 0;
     }

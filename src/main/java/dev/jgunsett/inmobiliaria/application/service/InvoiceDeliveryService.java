@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import dev.jgunsett.inmobiliaria.application.dto.invoice.InvoiceBatchItemResponse;
 import dev.jgunsett.inmobiliaria.application.dto.invoice.InvoiceBatchResponse;
 import dev.jgunsett.inmobiliaria.application.dto.invoice.InvoiceDeliveryResponse;
+import dev.jgunsett.inmobiliaria.application.dto.invoice.WhatsAppDeliveryResponse;
 import dev.jgunsett.inmobiliaria.application.dto.company.CompanyResponse;
 import dev.jgunsett.inmobiliaria.domain.entity.Invoice;
 import dev.jgunsett.inmobiliaria.domain.entity.InvoiceDelivery;
@@ -36,16 +37,20 @@ public class InvoiceDeliveryService {
     private final EmailSenderService emailSenderService;
     private final SystemSettingService systemSettingService;
     private final CompanyService companyService;
+    private final WhatsAppNotificationService whatsappNotificationService;
 
     public void sendIfEnabled(Invoice invoice) {
-        if (!isEnabled("invoice.auto-send.enabled")) return;
-
-        InvoiceDelivery existing = deliveryRepository
-                .findByInvoiceIdAndChannel(invoice.getId(), EMAIL_CHANNEL)
-                .orElse(null);
-        if (existing != null && existing.getStatus() == InvoiceDeliveryStatus.SENT) return;
-
-        sendInvoiceInternal(invoice);
+        if (isEnabled("invoice.auto-send.enabled")) {
+            InvoiceDelivery existing = deliveryRepository
+                    .findByInvoiceIdAndChannel(invoice.getId(), EMAIL_CHANNEL)
+                    .orElse(null);
+            if (existing == null || existing.getStatus() != InvoiceDeliveryStatus.SENT) {
+                sendInvoiceInternal(invoice);
+            }
+        }
+        if (isEnabled("whatsapp.invoice-auto-send.enabled")) {
+            whatsappNotificationService.sendInvoice(invoice);
+        }
     }
 
     public InvoiceDeliveryResponse sendInvoice(Long invoiceId) {
@@ -57,6 +62,21 @@ public class InvoiceDeliveryService {
         }
 
         return sendInvoiceInternal(invoice);
+    }
+
+    public WhatsAppDeliveryResponse sendWhatsAppInvoice(Long invoiceId) {
+        Invoice invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new ResourceNotFoundException("No se encontró Factura con el ID: " + invoiceId));
+
+        validateSendable(invoice);
+        var result = whatsappNotificationService.sendInvoice(invoice);
+        return WhatsAppDeliveryResponse.builder()
+                .invoiceId(invoiceId)
+                .status(result.skipped() ? "SKIPPED" : result.success() ? "SENT" : "FAILED")
+                .success(result.success())
+                .message(result.message())
+                .providerMessageId(result.providerMessageId())
+                .build();
     }
 
     public void resetForReissue(Invoice invoice) {
@@ -82,6 +102,38 @@ public class InvoiceDeliveryService {
                         .code(findCode(invoiceId))
                         .success(success)
                         .message(delivery.getStatus() + (delivery.getLastError() == null ? "" : ": " + delivery.getLastError()))
+                        .build());
+            } catch (RuntimeException ex) {
+                results.add(InvoiceBatchItemResponse.builder()
+                        .invoiceId(invoiceId)
+                        .code(findCodeSafely(invoiceId))
+                        .success(false)
+                        .message(ex.getMessage())
+                        .build());
+            }
+        }
+
+        return InvoiceBatchResponse.builder()
+                .requested(invoiceIds.size())
+                .succeeded(succeeded)
+                .failed(invoiceIds.size() - succeeded)
+                .results(results)
+                .build();
+    }
+
+    public InvoiceBatchResponse sendWhatsAppBatch(List<Long> invoiceIds) {
+        List<InvoiceBatchItemResponse> results = new ArrayList<>();
+        int succeeded = 0;
+
+        for (Long invoiceId : invoiceIds) {
+            try {
+                WhatsAppDeliveryResponse delivery = sendWhatsAppInvoice(invoiceId);
+                if (delivery.isSuccess()) succeeded++;
+                results.add(InvoiceBatchItemResponse.builder()
+                        .invoiceId(invoiceId)
+                        .code(findCode(invoiceId))
+                        .success(delivery.isSuccess())
+                        .message(delivery.getStatus() + ": " + delivery.getMessage())
                         .build());
             } catch (RuntimeException ex) {
                 results.add(InvoiceBatchItemResponse.builder()
@@ -164,6 +216,12 @@ public class InvoiceDeliveryService {
         }
 
         return toResponse(deliveryRepository.save(delivery));
+    }
+
+    private void validateSendable(Invoice invoice) {
+        if (invoice.getStatus() == InvoiceStatus.DRAFT || invoice.getStatus() == InvoiceStatus.CANCELED) {
+            throw new BusinessException("Solo se pueden enviar facturas emitidas, parcialmente pagadas o pagadas");
+        }
     }
 
     private boolean isEnabled(String key) {

@@ -17,6 +17,7 @@ import dev.jgunsett.inmobiliaria.application.dto.invoice.InvoiceDeliveryResponse
 import dev.jgunsett.inmobiliaria.application.dto.invoice.InvoiceLateFeeRequest;
 import dev.jgunsett.inmobiliaria.application.dto.invoice.InvoiceResponse;
 import dev.jgunsett.inmobiliaria.application.dto.invoice.InvoiceUpdateRequest;
+import dev.jgunsett.inmobiliaria.application.dto.invoice.WhatsAppDeliveryResponse;
 import dev.jgunsett.inmobiliaria.application.mapper.InvoiceMapper;
 import dev.jgunsett.inmobiliaria.domain.entity.Contract;
 import dev.jgunsett.inmobiliaria.domain.entity.Customer;
@@ -325,6 +326,14 @@ public class InvoiceService {
 
     public InvoiceBatchResponse sendBatch(List<Long> invoiceIds) {
         return invoiceDeliveryService.sendBatch(invoiceIds);
+    }
+
+    public WhatsAppDeliveryResponse sendWhatsApp(Long id) {
+        return invoiceDeliveryService.sendWhatsAppInvoice(id);
+    }
+
+    public InvoiceBatchResponse sendWhatsAppBatch(List<Long> invoiceIds) {
+        return invoiceDeliveryService.sendWhatsAppBatch(invoiceIds);
     }
 
     public InvoiceResponse applyLateFeeManually(Long id, InvoiceLateFeeRequest request) {

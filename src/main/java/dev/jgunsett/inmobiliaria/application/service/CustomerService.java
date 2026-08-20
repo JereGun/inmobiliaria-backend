@@ -2,6 +2,7 @@ package dev.jgunsett.inmobiliaria.application.service;
 
 import java.util.List;
 import java.util.stream.Stream;
+import java.time.LocalDateTime;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -86,6 +87,8 @@ public class CustomerService {
         }
 
         Customer customer = customerMapper.toEntity(request);
+        synchronizeWhatsAppPreferences(customer, request.getWhatsappEnabled(), request.getWhatsappInvoiceEnabled(),
+                request.getWhatsappPaymentEnabled(), request.getWhatsappReminderEnabled(), true);
         Customer saved = customerRepository.save(customer);
 
         return customerMapper.toResponse(saved);
@@ -116,8 +119,37 @@ public class CustomerService {
         }
 
         customerMapper.updateEntity(customer, request);
+        synchronizeWhatsAppPreferences(customer, request.getWhatsappEnabled(), request.getWhatsappInvoiceEnabled(),
+                request.getWhatsappPaymentEnabled(), request.getWhatsappReminderEnabled(), false);
 
         return customerMapper.toResponse(customer);
+    }
+
+    private void synchronizeWhatsAppPreferences(
+            Customer customer,
+            Boolean enabled,
+            Boolean invoiceEnabled,
+            Boolean paymentEnabled,
+            Boolean reminderEnabled,
+            boolean creation
+    ) {
+        boolean previousEnabled = Boolean.TRUE.equals(customer.getWhatsappEnabled());
+        boolean nextEnabled = enabled != null ? enabled : previousEnabled;
+        customer.setWhatsappEnabled(nextEnabled);
+        boolean nextInvoice = invoiceEnabled != null ? invoiceEnabled : Boolean.TRUE.equals(customer.getWhatsappInvoiceEnabled());
+        boolean nextPayment = paymentEnabled != null ? paymentEnabled : Boolean.TRUE.equals(customer.getWhatsappPaymentEnabled());
+        boolean nextReminder = reminderEnabled != null ? reminderEnabled : Boolean.TRUE.equals(customer.getWhatsappReminderEnabled());
+        customer.setWhatsappInvoiceEnabled(nextEnabled && nextInvoice);
+        customer.setWhatsappPaymentEnabled(nextEnabled && nextPayment);
+        customer.setWhatsappReminderEnabled(nextEnabled && nextReminder);
+
+        if (nextEnabled && (creation || !previousEnabled || customer.getWhatsappOptedInAt() == null)) {
+            customer.setWhatsappOptedInAt(LocalDateTime.now());
+            customer.setWhatsappOptedOutAt(null);
+            customer.setWhatsappOptInSource("ADMIN_CUSTOMER_FORM");
+        } else if (!nextEnabled && (previousEnabled || creation)) {
+            customer.setWhatsappOptedOutAt(LocalDateTime.now());
+        }
     }
 
     /**

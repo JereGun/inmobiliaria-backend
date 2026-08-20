@@ -19,6 +19,7 @@ import dev.jgunsett.inmobiliaria.application.dto.invoice.InvoiceDeliveryResponse
 import dev.jgunsett.inmobiliaria.application.dto.invoice.InvoiceLateFeeRequest;
 import dev.jgunsett.inmobiliaria.application.dto.invoice.InvoiceResponse;
 import dev.jgunsett.inmobiliaria.application.dto.invoice.InvoiceUpdateRequest;
+import dev.jgunsett.inmobiliaria.application.dto.invoice.WhatsAppDeliveryResponse;
 import dev.jgunsett.inmobiliaria.application.service.InvoiceService;
 import dev.jgunsett.inmobiliaria.domain.enums.InvoiceStatus;
 import jakarta.validation.Valid;
@@ -133,6 +134,18 @@ public class InvoiceController {
     public ResponseEntity<InvoiceBatchResponse> sendBatch(
             @Valid @RequestBody InvoiceBatchRequest request) {
         return ResponseEntity.ok(invoiceService.sendBatch(request.getInvoiceIds()));
+    }
+
+    @PostMapping("/{id}/send-whatsapp")
+    public ResponseEntity<WhatsAppDeliveryResponse> sendWhatsApp(
+            @PathVariable Long id) {
+        return ResponseEntity.ok(invoiceService.sendWhatsApp(id));
+    }
+
+    @PostMapping("/batch/send-whatsapp")
+    public ResponseEntity<InvoiceBatchResponse> sendWhatsAppBatch(
+            @Valid @RequestBody InvoiceBatchRequest request) {
+        return ResponseEntity.ok(invoiceService.sendWhatsAppBatch(request.getInvoiceIds()));
     }
 
     @PatchMapping("/{id}/late-fee")

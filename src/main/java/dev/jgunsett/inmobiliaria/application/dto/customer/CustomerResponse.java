@@ -29,6 +29,15 @@ public class CustomerResponse {
     private String email;
     private String phone;
 
+    private String whatsappPhone;
+    private Boolean whatsappEnabled;
+    private Boolean whatsappInvoiceEnabled;
+    private Boolean whatsappPaymentEnabled;
+    private Boolean whatsappReminderEnabled;
+    private LocalDateTime whatsappOptedInAt;
+    private LocalDateTime whatsappOptedOutAt;
+    private String whatsappOptInSource;
+
     private LocalDateTime creationDate;
     private LocalDateTime modificationDate;
 }
