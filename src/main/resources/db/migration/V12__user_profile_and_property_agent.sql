@@ -1,0 +1,6 @@
+ALTER TABLE app_user ADD COLUMN IF NOT EXISTS display_name VARCHAR(150);
+ALTER TABLE app_user ADD COLUMN IF NOT EXISTS whatsapp VARCHAR(50);
+ALTER TABLE app_user ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(500);
+
+ALTER TABLE property ADD COLUMN IF NOT EXISTS agent_id BIGINT REFERENCES app_user (id);
+CREATE INDEX IF NOT EXISTS idx_property_agent ON property (agent_id);

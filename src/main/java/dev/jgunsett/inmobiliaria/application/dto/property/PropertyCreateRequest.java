@@ -21,6 +21,8 @@ public class PropertyCreateRequest {
 	
 	@NotNull
 	private Long ownerId;
+
+	private Long agentId;
 	
 	@NotNull
 	private PropertyType propertyType;

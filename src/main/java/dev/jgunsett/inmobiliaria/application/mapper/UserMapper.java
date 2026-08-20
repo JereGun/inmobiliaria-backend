@@ -16,6 +16,10 @@ public class UserMapper {
 
 		return User.builder()
 				.email(request.getEmail())
+				.displayName(request.getDisplayName())
+				.whatsapp(request.getWhatsapp())
+				.avatarPositionX(request.getAvatarPositionX())
+				.avatarPositionY(request.getAvatarPositionY())
 				.password(encodedPassword)
 				.role(request.getRole())
 				.active(true)
@@ -31,12 +35,19 @@ public class UserMapper {
 		return UserResponse.builder()
 				.id(u.getId())
 				.email(u.getEmail())
+				.displayName(u.getDisplayName())
+				.whatsapp(u.getWhatsapp())
+				.avatarUrl(u.getAvatarUrl())
+				.avatarPositionX(u.getAvatarPositionX())
+				.avatarPositionY(u.getAvatarPositionY())
 				.role(u.getRole())
 				.active(u.getActive())
 				.verified(u.getVerified())
 				.createdAt(u.getCreatedAt())
 				.updatedAt(u.getUpdatedAt())
 				.lastLogin(u.getLastLogin())
+				.groupIds(u.getGroups().stream().map(group -> group.getId()).collect(java.util.stream.Collectors.toSet()))
+				.groupNames(u.getGroups().stream().map(group -> group.getName()).collect(java.util.stream.Collectors.toSet()))
 				.build();
 	}
 }

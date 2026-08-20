@@ -92,6 +92,7 @@ public class SecurityConfig {
                 ).permitAll()
                 .requestMatchers("/api/v1/tenant-portal/admin/**").hasAuthority("CUSTOMER_WRITE")
                 .requestMatchers("/api/v1/tenant-portal/**").hasAuthority("PORTAL_TENANT")
+                .requestMatchers("/api/v1/users/agents").authenticated()
                 .requestMatchers("/api/v1/users/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )

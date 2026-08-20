@@ -54,6 +54,22 @@ public class PropertyMapper {
 	        ownerFullName = p.getOwner().getFullName();
 	    }
 
+	    Long agentId = null;
+	    String agentName = null;
+	    String agentWhatsapp = null;
+	    String agentAvatarUrl = null;
+	    Integer agentAvatarPositionX = null;
+	    Integer agentAvatarPositionY = null;
+	    if (p.getAgent() != null) {
+	        agentId = p.getAgent().getId();
+	        agentName = p.getAgent().getDisplayName() != null && !p.getAgent().getDisplayName().isBlank()
+	                ? p.getAgent().getDisplayName() : p.getAgent().getEmail();
+	        agentWhatsapp = p.getAgent().getWhatsapp();
+	        agentAvatarUrl = p.getAgent().getAvatarUrl();
+	        agentAvatarPositionX = p.getAgent().getAvatarPositionX();
+	        agentAvatarPositionY = p.getAgent().getAvatarPositionY();
+	    }
+
 	    PropertyType propertyType = null;
 	    if (p.getPropertyType() != null) {
 	        propertyType = p.getPropertyType();
@@ -92,6 +108,12 @@ public class PropertyMapper {
 	            .name(p.getName())
 	            .ownerId(ownerId)
 	            .ownerFullName(ownerFullName)
+	            .agentId(agentId)
+	            .agentName(agentName)
+	            .agentWhatsapp(agentWhatsapp)
+	            .agentAvatarUrl(agentAvatarUrl)
+	            .agentAvatarPositionX(agentAvatarPositionX)
+	            .agentAvatarPositionY(agentAvatarPositionY)
 	            .propertyType(propertyType)
 	            .operationTypes(operationTypes)
 	            .status(p.getStatus())

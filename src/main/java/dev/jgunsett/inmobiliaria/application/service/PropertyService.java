@@ -11,6 +11,7 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -23,6 +24,7 @@ import dev.jgunsett.inmobiliaria.application.mapper.PropertyMapper;
 import dev.jgunsett.inmobiliaria.domain.entity.Customer;
 import dev.jgunsett.inmobiliaria.domain.entity.Property;
 import dev.jgunsett.inmobiliaria.domain.entity.PropertyImage;
+import dev.jgunsett.inmobiliaria.domain.entity.User;
 import dev.jgunsett.inmobiliaria.domain.enums.Amenity;
 import dev.jgunsett.inmobiliaria.domain.enums.ContractStatus;
 import dev.jgunsett.inmobiliaria.domain.enums.OperationType;
@@ -36,6 +38,7 @@ import dev.jgunsett.inmobiliaria.exception.ResourceNotFoundException;
 import dev.jgunsett.inmobiliaria.repository.ContractRepository;
 import dev.jgunsett.inmobiliaria.repository.CustomerRepository;
 import dev.jgunsett.inmobiliaria.repository.PropertyRepository;
+import dev.jgunsett.inmobiliaria.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -47,6 +50,9 @@ public class PropertyService {
 	private final CustomerRepository customerRepository;
 	
 	private final ContractRepository contractRepository;
+
+	@Autowired
+	private UserRepository userRepository;
 	
 	// Creacion de Propiedad
 	@Transactional
@@ -58,9 +64,12 @@ public class PropertyService {
 	            .orElseThrow(() -> new ResourceNotFoundException(
 	                    "El dueño con el ID: " + req.getOwnerId() + " no existe"));
 
+	    User agent = resolveAgent(req.getAgentId());
+
 	    Property property = Property.builder()
 	            .name(req.getName())
 	            .owner(owner)
+	            .agent(agent)
 	            .propertyType(req.getPropertyType())
 	            .operationTypes(req.getOperationTypes())
 	            .status(PropertyStatus.AVAILABLE)
@@ -124,6 +133,12 @@ public class PropertyService {
 	    }
 
 	    PropertyMapper.updateEntity(property, dto);
+
+	    if (dto.getAgentId() != null) {
+	        property.setAgent(resolveAgent(dto.getAgentId()));
+	    } else if (Boolean.TRUE.equals(dto.getClearAgent())) {
+	        property.setAgent(null);
+	    }
 
 	    validateOperationTypes(property, dto);
 
@@ -284,6 +299,16 @@ public class PropertyService {
 
 	    if (dto.getRentPrice() != null && dto.getRentPrice() <= 0)
 	        throw new BusinessException("El precio de alquiler debe ser mayor a cero");
+	}
+
+	private User resolveAgent(Long agentId) {
+		if (agentId == null) return null;
+		User agent = userRepository.findById(agentId)
+				.orElseThrow(() -> new ResourceNotFoundException("El agente con el ID: " + agentId + " no existe"));
+		if (!Boolean.TRUE.equals(agent.getActive())) {
+			throw new BusinessException("No se puede asignar un agente inactivo");
+		}
+		return agent;
 	}
 	
 	private void saveImages(Property property, List<MultipartFile> files, Integer coverIndex) {

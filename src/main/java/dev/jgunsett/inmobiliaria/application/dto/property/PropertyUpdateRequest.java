@@ -14,6 +14,9 @@ public class PropertyUpdateRequest {
 	
     private String name;
 
+	private Long agentId;
+	private Boolean clearAgent;
+
     private Set<OperationType> operationTypes;
     
     private Double salePrice;

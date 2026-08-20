@@ -32,6 +32,10 @@ public class Property {
 	@ManyToOne
 	@JoinColumn(name = "owner_id", nullable = false)
 	private Customer owner;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "agent_id")
+	private User agent;
 	
 	@Enumerated(EnumType.STRING)
 	private PropertyType propertyType;

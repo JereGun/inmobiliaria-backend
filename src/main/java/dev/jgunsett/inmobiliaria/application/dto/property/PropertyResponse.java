@@ -28,6 +28,13 @@ public class PropertyResponse {
 	private Long ownerId;
 	
 	private String ownerFullName;
+
+	private Long agentId;
+	private String agentName;
+	private String agentWhatsapp;
+	private String agentAvatarUrl;
+	private Integer agentAvatarPositionX;
+	private Integer agentAvatarPositionY;
 	
 	private PropertyType propertyType;
 	
